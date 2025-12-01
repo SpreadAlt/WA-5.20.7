@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
 local L = WeakAuras.L;
@@ -11,6 +13,7 @@ local default = {
   height = 200,
   color = {1, 1, 1, 1},
   blendMode = "BLEND",
+  textureWrapMode = "CLAMPTOBLACKADDITIVE",
   rotation = 0,
   mirror = false,
   rotate = false,
@@ -83,7 +86,7 @@ local function create(parent)
   region.regionType = "texture"
   region:SetMovable(true);
   region:SetResizable(true);
-  region:SetMinResize(1, 1);
+  region:SetResizeBounds(1, 1)
 
   local texture = Private.TextureBase.create(region)
   region.texture = texture;
@@ -190,14 +193,17 @@ local function modify(parent, region, data)
     self.texture:SetDesaturated(b)
   end
 
+  --- @type fun(degrees: number?)
   function region:SetAnimRotation(degrees)
     self.texture:SetAnimRotation(degrees)
   end
 
+  --- @type fun(degrees: number)
   function region:SetRotation(degrees)
     self.texture:SetRotation(degrees)
   end
 
+  --- @type fun(): number
   function region:GetBaseRotation()
     return self.texture:GetBaseRotation()
   end

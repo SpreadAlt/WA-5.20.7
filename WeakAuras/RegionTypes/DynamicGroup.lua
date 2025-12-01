@@ -1,7 +1,10 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
+---@class WeakAuras
 local WeakAuras = WeakAuras
 local L = WeakAuras.L
 local SharedMedia = LibStub("LibSharedMedia-3.0")
@@ -87,7 +90,7 @@ local controlPointFunctions = {
 
 local function createControlPoint(self)
   local controlPoint = CreateFrame("Frame", nil, self.parent)
-  WeakAuras.Mixin(controlPoint, controlPointFunctions)
+  Mixin(controlPoint, controlPointFunctions)
 
   controlPoint:SetWidth(16)
   controlPoint:SetHeight(16)
@@ -119,7 +122,7 @@ local function create(parent)
   region.updatedChildren = {}
   region.sortStates = {}
   region.growStates = {}
-  local background = CreateFrame("Frame", nil, region)
+  local background = CreateFrame("Frame", nil, region, "BackdropTemplate")
   region.background = background
   region.selfPoint = "TOPLEFT"
   region.controlPoints = CreateObjectPool(createControlPoint, releaseControlPoint)
@@ -337,12 +340,10 @@ local sorters = {
     end
     return function(a, b)
       Private.ActivateAuraEnvironment(data.id)
-      local ok, result = pcall(sortFunc, a, b)
+      local ok, result = xpcall(sortFunc, Private.GetErrorHandlerId(data.id, L["Custom Sort"]), a, b)
       Private.ActivateAuraEnvironment()
       if ok then
         return result
-      else
-        Private.GetErrorHandlerId(data.id, L["Custom Sort"])
       end
     end, sortOn
   end
@@ -383,7 +384,7 @@ local anchorers = {
         local unit = regionData.region.state and regionData.region.state.unit
         local found
         if unit then
-          local frame = WeakAuras.GetNamePlateForUnit(unit)
+          local frame = WeakAuras.GetUnitNameplate(unit)
           if frame then
             frames[frame] = frames[frame] or {}
             tinsert(frames[frame], regionData)
@@ -428,10 +429,7 @@ local anchorers = {
 
     return function(frames, activeRegions)
       Private.ActivateAuraEnvironment(data.id)
-      local ok = pcall(anchorFunc, frames, activeRegions)
-      if not ok then
-        Private.GetErrorHandlerUid(data.uid, L["Custom Anchor"])
-      end
+      xpcall(anchorFunc, Private.GetErrorHandlerUid(data.uid, L["Custom Anchor"]), frames, activeRegions)
       Private.ActivateAuraEnvironment()
     end, anchorOn
   end
@@ -668,6 +666,8 @@ local growers = {
         end
         local x, y = midX - totalWidth/2, midY - (stagger * (numVisible - 1)/2)
         newPositions[frame] = {}
+
+        --- @type integer?
         local i = FirstIndex(numVisible)
         while i do
           local regionData = regionDatas[i]
@@ -982,10 +982,9 @@ local growers = {
     end
     return function(newPositions, activeRegions)
       Private.ActivateAuraEnvironment(data.id)
-      local ok = pcall(growFunc, newPositions, activeRegions)
+      local ok = xpcall(growFunc, Private.GetErrorHandlerId(data.id, L["Custom Grow"]), newPositions, activeRegions)
       Private.ActivateAuraEnvironment()
       if not ok then
-        Private.GetErrorHandlerId(data.id, L["Custom Grow"])
         wipe(newPositions)
       end
     end, growOn
@@ -998,8 +997,11 @@ local function createGrowFunc(data)
   return grower(data)
 end
 
+local nullErrorHandler = function()
+end
+
 local function SafeGetPos(region, func)
-  local ok, value1, value2 = pcall(func, region)
+  local ok, value1, value2 = xpcall(func, nullErrorHandler, region)
   if ok then
     return value1, value2
   end
@@ -1364,11 +1366,7 @@ local function modify(parent, region, data)
           x + data.xOffset, y + data.yOffset
         )
       end
-      if show and frame ~= WeakAuras.HiddenFrames then
-        controlPoint:Show()
-      else
-        controlPoint:Hide()
-      end
+      controlPoint:SetShown(show and frame ~= WeakAuras.HiddenFrames)
       controlPoint:SetWidth(regionData.dimensions.width)
       controlPoint:SetHeight(regionData.dimensions.height)
       if (data.anchorFrameParent or data.anchorFrameParent == nil)
@@ -1402,8 +1400,7 @@ local function modify(parent, region, data)
       local childData = controlPoint.regionData.data
       local childRegion = controlPoint.regionData.region
       if(childData.frameStrata == 1) then
-        local frameStrata = region:GetFrameStrata()
-        childRegion:SetFrameStrata(frameStrata ~= "UNKNOWN" and frameStrata or "BACKGROUND");
+        childRegion:SetFrameStrata(region:GetFrameStrata());
       else
         childRegion:SetFrameStrata(Private.frame_strata_types[childData.frameStrata]);
       end
@@ -1522,7 +1519,7 @@ local function modify(parent, region, data)
 
     for index, child in ipairs(self.sortedChildren) do
       if not handledRegionData[child] then
-        child.controlPoint:Hide()
+        child.controlPoint:SetShown(false)
       end
     end
 
@@ -1540,6 +1537,15 @@ local function modify(parent, region, data)
       Private.StartProfileSystem("dynamicgroup")
       Private.StartProfileAura(data.id)
       local numVisible, minX, maxX, maxY, minY = 0, nil, nil, nil, nil
+      local isRestricted = region:IsAnchoringRestricted()
+      if isRestricted and not WeakAuras.IsOptionsOpen() then
+        -- workaround for restricted anchor families (mostly PRD)
+        -- if region is in a restricted anchor family, we're not allowed to get the rect of its children
+        -- and via Blizzard's extremely finite wisdom, the personal resource display is one such restricted family
+        -- so, temporarily reanchor to unrestrict us & child auras
+        region:RealClearAllPoints()
+        region:SetPoint("CENTER", UIParent, "CENTER")
+      end
       for active, regionData in ipairs(self.sortedChildren) do
         if regionData.shown then
           numVisible = numVisible + 1
@@ -1584,6 +1590,8 @@ local function modify(parent, region, data)
       end
       if WeakAuras.IsOptionsOpen() then
         Private.OptionsFrame().moversizer:ReAnchor()
+      elseif isRestricted then
+        self:ReAnchor()
       end
       Private.StopProfileSystem("dynamicgroup")
       Private.StopProfileAura(data.id)

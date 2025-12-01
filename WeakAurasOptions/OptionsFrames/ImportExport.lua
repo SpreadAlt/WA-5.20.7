@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 -- WoW APIs
@@ -7,6 +9,7 @@ local CreateFrame = CreateFrame
 
 local AceGUI = LibStub("AceGUI-3.0")
 
+---@class WeakAuras
 local WeakAuras = WeakAuras
 local L = WeakAuras.L
 
@@ -22,6 +25,7 @@ local function ConstructImportExport(frame)
 
   local input = AceGUI:Create("MultiLineEditBox");
   input:DisableButton(true)
+  input.frame:SetClipsChildren(true);
   input:SetFullWidth(true)
   input:SetFullHeight(true)
   group:AddChild(input);
@@ -62,7 +66,7 @@ local function ConstructImportExport(frame)
         elseif(mode == "table") then
           displayStr = OptionsPrivate.Private.DataToString(id, true);
         end
-        input.editBox:SetMaxBytes(nil); -- Dragonflight doesn't accept nil
+        --input.editBox:SetMaxBytes(nil); Dragonflight doesn't accept nil
         input.editBox:SetScript("OnEscapePressed", function()
           group:Close();
         end);

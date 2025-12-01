@@ -15,8 +15,8 @@ local function createOptions(parentData, data, index, subIndex)
   local pointAnchors = {}
   local areaAnchors = {}
   for child in OptionsPrivate.Private.TraverseLeafsOrAura(parentData) do
-    WeakAuras.Mixin(pointAnchors, OptionsPrivate.Private.GetAnchorsForData(child, "point"))
-    WeakAuras.Mixin(areaAnchors, OptionsPrivate.Private.GetAnchorsForData(child, "area"))
+    Mixin(pointAnchors, OptionsPrivate.Private.GetAnchorsForData(child, "point"))
+    Mixin(areaAnchors, OptionsPrivate.Private.GetAnchorsForData(child, "area"))
   end
 
   local textureNameHasData = OptionsPrivate.Private.StopMotionBase.textureNameHasData
@@ -311,5 +311,4 @@ local function createOptions(parentData, data, index, subIndex)
   return options
 end
 
-WeakAuras.RegisterSubRegionOptions("substopmotion", createOptions, L["Shows a Stop Motion"]);
-
+  WeakAuras.RegisterSubRegionOptions("substopmotion", createOptions, L["Shows a Stop Motion"]);

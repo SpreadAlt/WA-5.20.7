@@ -1,6 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
-
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 local L = WeakAuras.L
 
@@ -8,6 +9,7 @@ local pairs, next, type, unpack = pairs, next, type, unpack
 
 local Type, Version = "WeakAurasPendingUpdateButton", 6
 local AceGUI = LibStub and LibStub("AceGUI-3.0", true)
+local LibDD = LibStub:GetLibrary("LibUIDropDownMenu-4.0")
 
 if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then
   return
@@ -84,7 +86,7 @@ local methods = {
           )
         end
       end
-      EasyMenu(self.menu, WeakAuras_DropDownMenu, self.followLink, 0, 0, "MENU", 5)
+      LibDD:EasyMenu(self.menu, WeakAuras_DropDownMenu, self.followLink, 0, 0, "MENU", 5)
     end
 
     self:SetTitle(self.companionData.name)
@@ -295,15 +297,12 @@ local function Constructor()
   icon:SetHeight(32)
   icon:SetPoint("LEFT", button, "LEFT")
 
-  button.description = {}
-
   -- follow link button
   local followLink = CreateFrame("Button", nil, button)
   button.followLink = followLink
-  followLink:SetNormalTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\loottoast-arrow-green")
+  followLink:SetNormalAtlas("loottoast-arrow-green", true)
   followLink:GetNormalTexture():SetRotation(math.rad(-90))
-  followLink:SetWidth(32)
-  followLink:SetHeight(32)
+  followLink:SetSize(24, 24)
   followLink:SetPoint("RIGHT", button, "RIGHT", -2, 0)
   followLink:SetScript("OnEnter", function()
     GameTooltip:SetOwner(followLink, "ANCHOR_NONE")
@@ -371,6 +370,8 @@ local function Constructor()
   title:SetPoint("RIGHT", updateLogo, "LEFT", -2, 0)
   title:SetVertexColor(0.6, 0.6, 0.6)
 
+  button.description = {}
+  --- @type table<string, any>
   local widget = {
     frame = button,
     title = title,

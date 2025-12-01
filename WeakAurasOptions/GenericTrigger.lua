@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local L = WeakAuras.L;
@@ -106,6 +108,7 @@ local function GetCustomTriggerOptions(data, triggernum)
       type = "input",
       multiline = true,
       control = "WeakAuras-MultiLineEditBoxWithEnter",
+      LAAC = { disableFunctions = true, disableSystems = true },
       width = WeakAuras.doubleWidth,
       name = L["Event(s)"],
       desc = L["Custom trigger status tooltip"],
@@ -123,6 +126,7 @@ local function GetCustomTriggerOptions(data, triggernum)
       type = "input",
       multiline = true,
       control = "WeakAuras-MultiLineEditBoxWithEnter",
+      LAAC = { disableFunctions = true, disableSystems = true },
       name = L["Event(s)"],
       desc = L["Custom trigger event tooltip"],
       width = WeakAuras.doubleWidth,
@@ -351,6 +355,8 @@ local function GetCustomTriggerOptions(data, triggernum)
     inverse = "string",
     paused = "string",
     remaining = "string",
+    modRate = "string",
+    useModRate = "boolean",
     formatter = "string"
   }
 
@@ -532,20 +538,20 @@ local function GetGenericTriggerOptions(data, triggernum)
   }
 
   if (triggerType == "custom") then
-    WeakAuras.Mixin(options, GetCustomTriggerOptions(data, triggernum));
+    Mixin(options, GetCustomTriggerOptions(data, triggernum));
   elseif (OptionsPrivate.Private.category_event_prototype[triggerType]) then
     local prototypeOptions;
     local trigger = data.triggers[triggernum].trigger
     if(OptionsPrivate.Private.event_prototypes[trigger.event]) then
       prototypeOptions = OptionsPrivate.ConstructOptions(OptionsPrivate.Private.event_prototypes[trigger.event], data, 10, triggernum);
       if (trigger.event == "Combat Log") then
-        WeakAuras.Mixin(prototypeOptions, combatLogOptions);
+        Mixin(prototypeOptions, combatLogOptions);
       end
     else
       print("|cFF8800FFWeakAuras|r: No prototype for", trigger.event);
     end
     if (prototypeOptions) then
-      WeakAuras.Mixin(options, prototypeOptions);
+      Mixin(options, prototypeOptions);
     end
   end
 

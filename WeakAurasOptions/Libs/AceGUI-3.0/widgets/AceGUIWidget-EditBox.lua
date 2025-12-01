@@ -1,7 +1,7 @@
 --[[-----------------------------------------------------------------------------
 EditBox Widget
 -------------------------------------------------------------------------------]]
-local Type, Version = "EditBox", 30
+local Type, Version = "EditBox", 29
 local AceGUI = LibStub and LibStub("AceGUI-3.0", true)
 if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then return end
 
@@ -10,8 +10,7 @@ local tostring, pairs = tostring, pairs
 
 -- WoW APIs
 local PlaySound = PlaySound
-local GetMacroInfo = GetMacroInfo
-local GetCursorInfo, ClearCursor, GetSpellInfo = GetCursorInfo, ClearCursor, GetSpellInfo
+local GetCursorInfo, ClearCursor = GetCursorInfo, ClearCursor
 local CreateFrame, UIParent = CreateFrame, UIParent
 local _G = _G
 
@@ -20,7 +19,11 @@ Support functions
 -------------------------------------------------------------------------------]]
 if not AceGUIEditBoxInsertLink then
 	-- upgradeable hook
-	hooksecurefunc("ChatEdit_InsertLink", function(...) return _G.AceGUIEditBoxInsertLink(...) end)
+	if ChatFrameUtil and ChatFrameUtil.InsertLink then
+		hooksecurefunc(ChatFrameUtil, "InsertLink", function(...) return _G.AceGUIEditBoxInsertLink(...) end)
+	elseif ChatEdit_InsertLink then
+		hooksecurefunc("ChatEdit_InsertLink", function(...) return _G.AceGUIEditBoxInsertLink(...) end)
+	end
 end
 
 function _G.AceGUIEditBoxInsertLink(text)
@@ -70,19 +73,23 @@ local function EditBox_OnEnterPressed(frame)
 	local value = frame:GetText()
 	local cancel = self:Fire("OnEnterPressed", value)
 	if not cancel then
-		PlaySound("igMainMenuOptionCheckBoxOn")
+		PlaySound(856) -- SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON
 		HideButton(self)
 	end
 end
 
 local function EditBox_OnReceiveDrag(frame)
 	local self = frame.obj
-	local type, id, info = GetCursorInfo()
+	local type, id, info, extra = GetCursorInfo()
 	local name
 	if type == "item" then
 		name = info
 	elseif type == "spell" then
-		name = GetSpellInfo(id, info)
+		if C_Spell and C_Spell.GetSpellName then
+			name = C_Spell.GetSpellName(extra)
+		else
+			name = GetSpellInfo(id, info)
+		end
 	elseif type == "macro" then
 		name = GetMacroInfo(id)
 	end
@@ -207,7 +214,7 @@ Constructor
 -------------------------------------------------------------------------------]]
 local function Constructor()
 	local num  = AceGUI:GetNextWidgetNum(Type)
-	local frame = CreateFrame("Frame", string.format("%s%d", Type, num), UIParent)
+	local frame = CreateFrame("Frame", nil, UIParent)
 	frame:Hide()
 
 	local editbox = CreateFrame("EditBox", "AceGUI-3.0EditBox"..num, frame, "InputBoxTemplate")

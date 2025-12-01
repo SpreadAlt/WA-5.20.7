@@ -1,6 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
-
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
 local L = WeakAuras.L
@@ -94,7 +95,7 @@ local funcs = {
 
 local function create()
   local region = CreateFrame("Frame", nil, UIParent)
-  --region:SetFlattensRenderLayers(true)
+  region:SetFlattensRenderLayers(true)
 
   for k, v in pairs(funcs) do
     region[k] = v

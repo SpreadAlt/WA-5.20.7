@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
 local L = WeakAuras.L
@@ -60,9 +62,10 @@ local function formatValueForAssignment(vType, value, pathToCustomFunction, path
       local progressType = progressSource[2] or "auto"
       local property = progressSource[3]
       local totalProperty = progressSource[4]
-      local inverseProperty = progressSource[5]
-      local pausedProperty = progressSource[6]
-      local remainingProperty = progressSource[7]
+      local modRateProperty = progressSource[5]
+      local inverseProperty = progressSource[6]
+      local pausedProperty = progressSource[7]
+      local remainingProperty = progressSource[8]
 
       if trigger == 0 then
         -- Manual progress
@@ -74,11 +77,12 @@ local function formatValueForAssignment(vType, value, pathToCustomFunction, path
         )
         return serialized
       else
-        local serialized = string.format("{%s, %s, %s, %s, %s, %s, %s}",
+        local serialized = string.format("{%s, %s, %s, %s, %s, %s, %s, %s}",
             trigger,
             Private.QuotedString(progressType),
             Private.QuotedString(property or "nil"),
             totalProperty and Private.QuotedString(totalProperty) or "nil",
+            modRateProperty and Private.QuotedString(modRateProperty) or "nil",
             inverseProperty and Private.QuotedString(inverseProperty) or "nil",
             pausedProperty and Private.QuotedString(pausedProperty) or "nil",
             remainingProperty and Private.QuotedString(remainingProperty) or "nil"
@@ -196,7 +200,7 @@ function Private.ExecEnv.ScheduleConditionCheck(time, uid, cloneId)
   end
 
   if (conditionChecksTimers.recheckHandle[uid][cloneId] == nil) then
-    conditionChecksTimers.recheckHandle[uid][cloneId] = timer:ScheduleTimer(function()
+    conditionChecksTimers.recheckHandle[uid][cloneId] = timer:ScheduleTimerFixed(function()
       conditionChecksTimers.recheckHandle[uid][cloneId] = nil;
       local region = Private.GetRegionByUID(uid, cloneId)
       if (region and region.toShow) then
@@ -210,10 +214,9 @@ function Private.ExecEnv.ScheduleConditionCheck(time, uid, cloneId)
 end
 
 function Private.ExecEnv.CallCustomConditionTest(uid, testFunctionNumber, ...)
-  local ok, result = pcall(Private.ExecEnv.conditionHelpers[uid].customTestFunctions[testFunctionNumber], ...)
-  if not ok then
-    Private.GetErrorHandlerUid(uid, L["Condition Custom Test"])
-  elseif (ok) then
+  local ok, result = xpcall(Private.ExecEnv.conditionHelpers[uid].customTestFunctions[testFunctionNumber],
+                            Private.GetErrorHandlerUid(uid, L["Condition Custom Test"]), ...)
+  if (ok) then
     return result
   end
 end
@@ -260,12 +263,14 @@ local function CreateTestForCondition(data, input, allConditionsTemplate, usedSt
     local recheckTime = conditionTemplate and conditionTemplate.recheckTime
     local preamble = conditionTemplate and conditionTemplate.preamble;
     local progressSource
+    local modRateProperty
     local pausedProperty
     local remainingProperty
     if cType == "timer" then
       progressSource = Private.GetProgressSourceFor(data, trigger, variable)
-      pausedProperty = progressSource and progressSource[6]
-      remainingProperty = progressSource[7]
+      modRateProperty = progressSource and progressSource[5]
+      pausedProperty = progressSource and progressSource[7]
+      remainingProperty = progressSource[8]
     end
 
     local stateCheck = "state[" .. trigger .. "] and state[" .. trigger .. "].show and ";
@@ -326,10 +331,15 @@ local function CreateTestForCondition(data, input, allConditionsTemplate, usedSt
 
         remainingTime = "((" .. pausedString .. " and " .. remainingString .. ") or " ..  remainingTime .. ")"
       end
+
+      local divideModRate = modRateProperty
+            and  " / (state[" .. trigger .. "]" .. string.format("[%q]",  modRateProperty) .. " or 1.0)"
+            or ""
+
       if (op == "==") then
-        check = stateCheck .. stateVariableCheck .. varString .. "~= 0 and " .. "abs((" .. remainingTime .. "-" .. value .. ")" .. ") < 0.05"
+        check = stateCheck .. stateVariableCheck .. varString .. "~= 0 and " .. "abs((" .. remainingTime .. "-" .. value .. ")" .. divideModRate .. ") < 0.05"
       else
-        check = stateCheck .. stateVariableCheck .. varString .. "~= 0 and " .. remainingTime .. op .. value
+        check = stateCheck .. stateVariableCheck .. varString .. "~= 0 and " .. remainingTime .. divideModRate .. op .. value
       end
     elseif (cType == "elapsedTimer" and value and op) then
       if (op == "==") then
@@ -370,7 +380,7 @@ local function CreateTestForCondition(data, input, allConditionsTemplate, usedSt
             local found = 0
             local op = %q
             local range = %s
-            for i = 1, 100 do
+            for i = 1, 40 do
               local unit = "nameplate" .. i
               if UnitExists(unit) and UnitCanAttack("player", unit) and WeakAuras.CheckRange(unit, range, op) then
                 found = found + 1
@@ -401,13 +411,13 @@ local function CreateTestForCondition(data, input, allConditionsTemplate, usedSt
     elseif (cType == "string" and value) then
       if(op == "==") then
         check = stateCheck .. stateVariableCheck .. "state[" .. trigger .. "]" .. string.format("[%q]", variable)
-                .. " == [[" .. value .. "]]";
+                .. string.format(" == %q", value)
       elseif (op  == "find('%s')") then
         check = stateCheck .. stateVariableCheck .. "state[" .. trigger .. "]" .. string.format("[%q]", variable)
-                .. ":find([[" .. value .. "]], 1, true)";
+                .. string.format(":find(%q, 1, true)", value)
       elseif (op == "match('%s')") then
         check = stateCheck .. stateVariableCheck .. "state[" .. trigger .. "]" .. string.format("[%q]",  variable)
-                .. ":match([[" .. value .. "]], 1, true)";
+                .. string.format(":match(%q, 1, true)", value)
       end
     end
     -- If adding a new condition type, don't forget to adjust the validator in the options code
@@ -429,13 +439,16 @@ local function CreateTestForCondition(data, input, allConditionsTemplate, usedSt
       end
     elseif (cType == "timer" and value) then
       local variableString =  "state[" .. trigger .. "]" .. string.format("[%q]",  variable)
+      local multiplyModRate = modRateProperty
+            and  " * (state[" .. trigger .. "]" .. string.format("[%q]",  modRateProperty) .. " or 1.0)"
+            or ""
       local andNotPaused = pausedProperty
             and "and not " .. "state[" .. trigger .. "]" .. string.format("[%q]",  pausedProperty)
             or ""
 
       recheckCode = "  nextTime = state[" .. trigger .. "] " .. andNotPaused
       .. " and " .. variableString
-      .. " and " .. "(" .. variableString .. " - " .. value .. ")\n"
+      .. " and " .. "(" .. variableString .. " - " .. value .. multiplyModRate .. ")\n"
 
       recheckCode = recheckCode .. "  if (nextTime and (not recheckTime or nextTime < recheckTime) and nextTime >= now) then\n"
       recheckCode = recheckCode .. "    recheckTime = nextTime\n";
@@ -692,7 +705,7 @@ local globalConditions =
     type = "bool",
     events = {"PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED"},
     globalStateUpdate = function(state)
-      state.incombat = UnitAffectingCombat("player") == 1 and true or false;
+      state.incombat = UnitAffectingCombat("player");
     end
   },
   ["hastarget"] = {
@@ -700,7 +713,7 @@ local globalConditions =
     type = "bool",
     events = {"PLAYER_TARGET_CHANGED", "PLAYER_ENTERING_WORLD"},
     globalStateUpdate = function(state)
-      state.hastarget = UnitExists("target") == 1 and true or false;
+      state.hastarget = UnitExists("target");
     end
   },
   ["rangecheck"] = {
@@ -714,7 +727,7 @@ local globalConditions =
     type = "bool",
     events = {"PLAYER_TARGET_CHANGED", "UNIT_FACTION"},
     globalStateUpdate = function(state)
-      state.attackabletarget = UnitCanAttack("player", "target") == 1 and true or false;
+      state.attackabletarget = UnitCanAttack("player", "target");
     end
   },
   ["customcheck"] = {
@@ -847,10 +860,7 @@ end
 function Private.RunConditions(region, uid, hideRegion)
   if (checkConditions[uid]) then
     Private.ActivateAuraEnvironmentForRegion(region)
-    local ok = pcall(checkConditions[uid], region, hideRegion);
-    if not ok then
-      Private.GetErrorHandlerUid(uid, L["Execute Conditions"])
-    end
+    xpcall(checkConditions[uid], Private.GetErrorHandlerUid(uid, L["Execute Conditions"]), region, hideRegion);
     Private.ActivateAuraEnvironment()
   end
 end
@@ -1018,8 +1028,7 @@ function Private.RegisterForGlobalConditions(uid)
           dynamicConditionsFrame.units[unit] = CreateFrame("Frame");
           dynamicConditionsFrame.units[unit]:SetScript("OnEvent", handleDynamicConditionsPerUnit);
         end
-        dynamicConditionsFrame.units[unit].unit = unit;
-        pcall(dynamicConditionsFrame.units[unit].RegisterEvent, dynamicConditionsFrame.units[unit], unitEvent, unit);
+        pcall(dynamicConditionsFrame.units[unit].RegisterUnitEvent, dynamicConditionsFrame.units[unit], unitEvent, unit);
         UpdateDynamicConditionsPerUnitState(dynamicConditionsFrame, event, unit)
       else
         pcall(dynamicConditionsFrame.RegisterEvent, dynamicConditionsFrame, event);

@@ -1,6 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
-
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local L = WeakAuras.L;
@@ -9,8 +10,8 @@ local function createOptions(parentData, data, index, subIndex)
   local pointAnchors = {}
   local areaAnchors = {}
   for child in OptionsPrivate.Private.TraverseLeafsOrAura(parentData) do
-    WeakAuras.Mixin(pointAnchors, OptionsPrivate.Private.GetAnchorsForData(child, "point"))
-    WeakAuras.Mixin(areaAnchors, OptionsPrivate.Private.GetAnchorsForData(child, "area"))
+    Mixin(pointAnchors, OptionsPrivate.Private.GetAnchorsForData(child, "point"))
+    Mixin(areaAnchors, OptionsPrivate.Private.GetAnchorsForData(child, "area"))
   end
 
   local options = {
@@ -32,7 +33,7 @@ local function createOptions(parentData, data, index, subIndex)
       type = "execute",
       width = 0.15,
       name = L["Choose"],
-      order = 2,
+      order = 2.1,
       func = function()
         local path = { "subRegions", index }
         local paths = {}
@@ -44,7 +45,7 @@ local function createOptions(parentData, data, index, subIndex)
           color = "textureColor",
           mirror = "textureMirror",
           blendMode = "textureBlendMode"
-        }, OptionsPrivate.Private.texture_types, nil, true)
+        }, OptionsPrivate.Private.texture_types)
       end,
       imageWidth = 24,
       imageHeight = 24,
@@ -83,7 +84,7 @@ local function createOptions(parentData, data, index, subIndex)
       width = WeakAuras.normalWidth,
       name = L["Allow Full Rotation"],
       order = 13,
-      -- hidden = data -- do we need this???
+      hidden = data and OptionsPrivate.Private.TextureBase.IsAtlas(data.texture)
     },
     textureRotation = {
       type = "range",

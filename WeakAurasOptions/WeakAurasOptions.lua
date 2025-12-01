@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 -- Lua APIs
@@ -11,10 +13,11 @@ local _G = _G
 
 -- WoW APIs
 local InCombatLockdown = InCombatLockdown
-local CreateFrame, IsAddOnLoaded, LoadAddOn = CreateFrame, IsAddOnLoaded, LoadAddOn
+local CreateFrame = CreateFrame
 
 local AceGUI = LibStub("AceGUI-3.0")
 
+---@class WeakAuras
 local WeakAuras = WeakAuras
 local L = WeakAuras.L
 local ADDON_NAME = "WeakAurasOptions";
@@ -181,6 +184,7 @@ end
 local frame;
 local db;
 local odb;
+--- @type boolean?
 local reopenAfterCombat = false;
 local loadedFrame = CreateFrame("Frame");
 loadedFrame:RegisterEvent("ADDON_LOADED");
@@ -450,10 +454,9 @@ StaticPopupDialogs["WEAKAURAS_CONFIRM_DELETE"] = {
   OnCancel = function(self)
     self.data = nil
   end,
-  showAlert = 1,
-  whileDead = 1,
-  timeout = 0,
-  preferredindex = STATICPOPUP_NUMDIALOGS,
+  showAlert = true,
+  whileDead = true,
+  preferredindex = 4,
 }
 
 function OptionsPrivate.IsWagoUpdateIgnored(auraId)
@@ -569,6 +572,7 @@ local function OptionsFrame()
 end
 
 if not WeakAuras.ToggleOptions then
+  ---@type fun(msg: string, Private: Private)
   function WeakAuras.ToggleOptions(msg, Private)
     if not Private then
       return
@@ -854,6 +858,10 @@ function WeakAuras.ShowOptions(msg)
 
   if (OptionsPrivate.Private.personalRessourceDisplayFrame) then
     OptionsPrivate.Private.personalRessourceDisplayFrame:OptionsOpened();
+  end
+
+  if frame.moversizer then
+    frame.moversizer:OptionsOpened()
   end
 
   if not(firstLoad) then
@@ -1626,6 +1634,7 @@ end
 function OptionsPrivate.DropIndicator()
   local indicator = frame.dropIndicator
   if not indicator then
+    ---@class Frame
     indicator = CreateFrame("Frame", "WeakAuras_DropIndicator")
     indicator:SetHeight(4)
     indicator:SetFrameStrata("FULLSCREEN")
@@ -1686,8 +1695,8 @@ function WeakAuras.UpdateThumbnail(data)
   button:UpdateThumbnail()
 end
 
-function OptionsPrivate.OpenTexturePicker(baseObject, paths, properties, textures, SetTextureFunc)
-  OptionsPrivate.TexturePicker(frame):Open(baseObject, paths, properties, textures, SetTextureFunc)
+function OptionsPrivate.OpenTexturePicker(baseObject, paths, properties, textures, SetTextureFunc, adjustSize)
+   OptionsPrivate.TexturePicker(frame):Open(baseObject, paths, properties, textures, SetTextureFunc, adjustSize)
 end
 
 function OptionsPrivate.OpenIconPicker(baseObject, paths, groupIcon)
@@ -1695,8 +1704,8 @@ function OptionsPrivate.OpenIconPicker(baseObject, paths, groupIcon)
 end
 
 function OptionsPrivate.OpenModelPicker(baseObject, path)
-  if not(IsAddOnLoaded("WeakAurasModelPaths")) then
-    local loaded, reason = LoadAddOn("WeakAurasModelPaths");
+  if not(C_AddOns.IsAddOnLoaded("WeakAurasModelPaths")) then
+    local loaded, reason = C_AddOns.LoadAddOn("WeakAurasModelPaths");
     if not(loaded) then
       reason = string.lower("|cffff2020" .. _G["ADDON_" .. reason] .. "|r.")
       WeakAuras.prettyPrint(string.format(L["ModelPaths could not be loaded, the addon is %s"], reason));
@@ -1712,8 +1721,8 @@ function OptionsPrivate.OpenCodeReview(data)
 end
 
 function OptionsPrivate.OpenTriggerTemplate(data, targetId)
-  if not(IsAddOnLoaded("WeakAurasTemplates")) then
-    local loaded, reason = LoadAddOn("WeakAurasTemplates");
+  if not(C_AddOns.IsAddOnLoaded("WeakAurasTemplates")) then
+    local loaded, reason = C_AddOns.LoadAddOn("WeakAurasTemplates");
     if not(loaded) then
       reason = string.lower("|cffff2020" .. _G["ADDON_" .. reason] .. "|r.")
       WeakAuras.prettyPrint(string.format(L["Templates could not be loaded, the addon is %s"], reason));
@@ -1806,7 +1815,7 @@ function OptionsPrivate.UpdateTextReplacements(frame, data)
       local heading = AceGUI:Create("Heading")
       heading:SetText(prop.name)
       heading:SetRelativeWidth(1)
-      heading.label:SetFontObject(GameFontNormalSmall)
+      heading.label:SetFontObject(GameFontNormalSmall2)
       frame.scrollList:AddChild(heading)
     else
       if ((prop.type == "mini" or prop.type == "marker") and prop.type ~= lastType)

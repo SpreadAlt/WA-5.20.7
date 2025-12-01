@@ -1,8 +1,6 @@
 --[[-----------------------------------------------------------------------------
 Spin Box Widget
 -------------------------------------------------------------------------------]]
-if not WeakAuras.IsLibsOK() then return end
-
 local Type, Version = "WeakAurasSpinBox", 5
 local AceGUI = LibStub and LibStub("AceGUI-3.0", true)
 if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then
@@ -17,10 +15,10 @@ local tonumber, pairs = tonumber, pairs
 local PlaySound = PlaySound
 local CreateFrame, UIParent = CreateFrame, UIParent
 
-local progressLeftOffset = -3
-local progressExtraWidth = -0
-local progressTopOffset = -2
-local progressBottomOffset = 2
+local progressLeftOffset = WeakAuras.IsClassicOrWrathOrCata() and -2 or -3
+local progressExtraWidth = WeakAuras.IsClassicOrWrathOrCata() and -2 or 0
+local progressTopOffset = WeakAuras.IsClassicOrWrathOrCata() and -3 or -2
+local progressBottomOffset = WeakAuras.IsClassicOrWrathOrCata() and 3 or 2
 
 --[[-----------------------------------------------------------------------------
 Support functions
@@ -36,18 +34,8 @@ end
 
 local function UpdateButtons(self)
   local value = self:GetValue() or 0
-
-  if value > self.min then
-    self.leftbutton:Enable()
-  else
-    self.leftbutton:Disable()
-  end
-
-  if value < self.max then
-    self.rightbutton:Enable()
-  else
-    self.rightbutton:Disable()
-  end
+  self.leftbutton:SetEnabled(value > self.min)
+  self.rightbutton:SetEnabled(value < self.max)
 end
 
 local function UpdateProgressBar(self)
@@ -66,14 +54,11 @@ end
 
 local function UpdateHandleColor(self)
   if self.progressBarHandle.mouseDown then
-    self.progressBarHandleTexture:SetVertexColor(0.6, 0.6, 0, 1)
-    --self.progressBarHandleTexture:SetColorTexture(0.6, 0.6, 0, 1)
+    self.progressBarHandleTexture:SetColorTexture(0.6, 0.6, 0, 1)
   elseif MouseIsOver(self.progressBarHandle) then
-    self.progressBarHandleTexture:SetVertexColor(0.8, 0.8, 0, 1)
-    --self.progressBarHandleTexture:SetColorTexture(0.8, 0.8, 0, 1)
+    self.progressBarHandleTexture:SetColorTexture(0.8, 0.8, 0, 1)
   else
-    self.progressBarHandleTexture:SetVertexColor(0.4, 0.4, 0, 1)
-    --self.progressBarHandleTexture:SetColorTexture(0.4, 0.4, 0, 1)
+    self.progressBarHandleTexture:SetColorTexture(0.4, 0.4, 0, 1)
   end
 end
 
@@ -95,7 +80,7 @@ local function SpinBox_OnValueDown(frame)
   local value = self.value or 0
   local step = self.step or 1
   value = math_max(self.min, value - step)
-  PlaySound("igMainMenuOptionCheckBoxOn")
+  PlaySound(856) -- SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON
   self:SetValue(value, true)
 end
 
@@ -105,7 +90,7 @@ local function SpinBox_OnValueUp(frame)
   local value = self.value or 0
   local step = self.step or 1
   value = math_min(self.max, value + step)
-  PlaySound("igMainMenuOptionCheckBoxOn")
+  PlaySound(856) -- SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON
   self:SetValue(value, true)
 end
 
@@ -124,7 +109,7 @@ local function EditBox_OnEnterPressed(frame)
   end
 
   if value then
-    PlaySound("igMainMenuOptionCheckBoxOn")
+    PlaySound(856) -- SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON
     self:SetValue(value, true)
   end
   frame:ClearFocus()
@@ -216,8 +201,8 @@ local methods = {
       self.editbox:SetTextColor(0.5, 0.5, 0.5)
       self.editbox:EnableMouse(false)
       self.editbox:ClearFocus()
-      self.leftbutton:Disable()
-      self.rightbutton:Disable()
+      self.leftbutton:SetEnabled(false)
+      self.rightbutton:SetEnabled(false)
     else
       self.label:SetTextColor(1, 0.82, 0)
       self.editbox:SetTextColor(1, 1, 1)
@@ -279,9 +264,7 @@ local methods = {
 Constructor
 -------------------------------------------------------------------------------]]
 local function Constructor()
-  local widgetName = ("%s%d"):format(Type, AceGUI:GetNextWidgetNum(Type))
-
-  local frame = CreateFrame("Frame", widgetName, UIParent)
+  local frame = CreateFrame("Frame", nil, UIParent)
   frame:SetScript("OnEnter", Frame_OnEnter)
 
   local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -306,8 +289,7 @@ local function Constructor()
 	rightbutton:SetDisabledTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\spinboxrightp")
   rightbutton:SetScript("OnClick", SpinBox_OnValueUp)
 
-  local editbox = CreateFrame("EditBox", nil, frame)
-  WeakAuras.XMLTemplates["InputBoxTemplate"](editbox)
+  local editbox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
   editbox:SetAutoFocus(false)
   editbox:SetFontObject(ChatFontNormal)
   editbox:SetHeight(19)
@@ -351,7 +333,7 @@ local function Constructor()
 
   local progressBarHandleTexture = progressBarHandle:CreateTexture(nil, "ARTWORK")
   progressBarHandleTexture:SetTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\Square_White")
-  progressBarHandleTexture:SetVertexColor(0.8, 0.8, 0, 0.8)
+  progressBarHandleTexture:SetColorTexture(0.8, 0.8, 0, 0.8)
   progressBarHandleTexture:SetPoint("TOPLEFT", progressBarHandle, "TOPLEFT", 2, -2)
   progressBarHandleTexture:SetPoint("BOTTOMRIGHT", progressBarHandle, "BOTTOMRIGHT", -2, 2)
 

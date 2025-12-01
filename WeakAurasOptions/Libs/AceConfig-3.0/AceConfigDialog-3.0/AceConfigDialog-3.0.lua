@@ -1,13 +1,13 @@
 --- AceConfigDialog-3.0 generates AceGUI-3.0 based windows based on option tables.
 -- @class file
 -- @name AceConfigDialog-3.0
--- @release $Id: AceConfigDialog-3.0.lua 1351 2024-07-24 18:23:24Z funkehdude $
+-- @release $Id: AceConfigDialog-3.0.lua 1372 2025-10-05 05:38:34Z nevcairiel $
 
 local LibStub = LibStub
 local gui = LibStub("AceGUI-3.0")
 local reg = LibStub("AceConfigRegistry-3.0")
 
-local MAJOR, MINOR = "AceConfigDialog-3.0", 87
+local MAJOR, MINOR = "AceConfigDialog-3.0", 89
 local AceConfigDialog, oldminor = LibStub:NewLibrary(MAJOR, MINOR)
 
 if not AceConfigDialog then return end
@@ -32,9 +32,9 @@ local math_min, math_max, math_floor = math.min, math.max, math.floor
 local emptyTbl = {}
 
 --[[
-	 pcall safecall implementation
+	 xpcall safecall implementation
 ]]
-local pcall = pcall
+local xpcall = xpcall
 
 local function errorhandler(err)
 	return geterrorhandler()(err)
@@ -42,11 +42,7 @@ end
 
 local function safecall(func, ...)
 	if func then
-		local ret = {pcall(func, ...)}
-		if not ret[1] then
-			errorhandler(ret[2])
-		end
-		return unpack(ret)
+		return xpcall(func, errorhandler, ...)
 	end
 end
 
@@ -521,16 +517,16 @@ local function OptionOnMouseOver(widget, event)
 
 	if descStyle and descStyle ~= "tooltip" then return end
 
-	tooltip:SetText(name, 1, .82, 0, 1)
+	tooltip:SetText(name, 1, .82, 0, 1, true)
 
 	if opt.type == "multiselect" then
-		tooltip:AddLine(user.text, 0.5, 0.5, 0.8, 1)
+		tooltip:AddLine(user.text, 0.5, 0.5, 0.8, true)
 	end
 	if type(desc) == "string" then
-		tooltip:AddLine(desc, 1, 1, 1, 1)
+		tooltip:AddLine(desc, 1, 1, 1, true)
 	end
 	if type(usage) == "string" then
-		tooltip:AddLine("Usage: "..usage, NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, 1)
+		tooltip:AddLine(usage, NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, true)
 	end
 
 	tooltip:Show()
@@ -574,12 +570,10 @@ do
 			end
 		end)
 
-		local border = CreateFrame("Frame", nil, frame)
+		local border = CreateFrame("Frame", nil, frame, "DialogBorderOpaqueTemplate")
 		border:SetAllPoints(frame)
-		frame.realSetFrameStrata = frame.SetFrameStrata
-		frame.realSetFrameLevel = frame.SetFrameLevel
-		frame.SetFrameStrata = function() end -- frame:SetFixedFrameStrata(true)
-		frame.SetFrameLevel = function() end -- frame:SetFixedFrameLevel(true)
+		frame:SetFixedFrameStrata(true)
+		frame:SetFixedFrameLevel(true)
 
 		local text = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 		text:SetSize(290, 0)
@@ -591,11 +585,11 @@ do
 			button:SetSize(128, 21)
 			button:SetNormalFontObject(GameFontNormal)
 			button:SetHighlightFontObject(GameFontHighlight)
-			button:SetNormalTexture("Interface\\Buttons\\UI-DialogBox-Button-Up")
+			button:SetNormalTexture(130763) -- "Interface\\Buttons\\UI-DialogBox-Button-Up"
 			button:GetNormalTexture():SetTexCoord(0.0, 1.0, 0.0, 0.71875)
-			button:SetPushedTexture("Interface\\Buttons\\UI-DialogBox-Button-Down")
+			button:SetPushedTexture(130761) -- "Interface\\Buttons\\UI-DialogBox-Button-Down"
 			button:GetPushedTexture():SetTexCoord(0.0, 1.0, 0.0, 0.71875)
-			button:SetHighlightTexture("Interface\\Buttons\\UI-DialogBox-Button-Highlight")
+			button:SetHighlightTexture(130762) -- "Interface\\Buttons\\UI-DialogBox-Button-Highlight"
 			button:GetHighlightTexture():SetTexCoord(0.0, 1.0, 0.0, 0.71875)
 			button:SetText(newText)
 			return button
@@ -767,7 +761,7 @@ local function ActivateControl(widget, event, ...)
 		else
 			validationErrorPopup(validated)
 		end
-		PlaySound("igPlayerInviteDecline")
+		PlaySound(882) -- SOUNDKIT.IG_PLAYER_INVITE_DECLINE || _DECLINE is actually missing from the table
 		del(info)
 		return true
 	else
@@ -1512,7 +1506,7 @@ local function TreeOnButtonEnter(widget, event, uniquevalue, button)
 		tooltip:SetPoint("LEFT",button,"RIGHT")
 	end
 
-	tooltip:SetText(name, 1, .82, 0, true)
+	tooltip:SetText(name, 1, .82, 0, 1, true)
 
 	if type(desc) == "string" then
 		tooltip:AddLine(desc, 1, 1, 1, true)

@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 -- Lua APIs
@@ -11,8 +13,12 @@ local CreateFrame = CreateFrame
 
 local AceGUI = LibStub("AceGUI-3.0")
 local SharedMedia = LibStub("LibSharedMedia-3.0")
+local LibDD = LibStub:GetLibrary("LibUIDropDownMenu-4.0")
+local LAAC = LibStub("LibAPIAutoComplete-1.0")
+
 local IndentationLib = IndentationLib
 
+---@class WeakAuras
 local WeakAuras = WeakAuras
 local L = WeakAuras.L
 
@@ -113,7 +119,7 @@ end]=]
   {
     name = "Trigger: CLEU",
     snippet = [=[
-function(event, timestamp, subEvent, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags, ...)
+function(event, timestamp, subEvent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, ...)
 
     return
 end]=]
@@ -163,9 +169,10 @@ local function ConstructTextEditor(frame)
   editor:DisableButton(true)
   local fontPath = SharedMedia:Fetch("font", "Fira Mono Medium")
   if (fontPath) then
-    editor.editBox:SetFont(fontPath, WeakAurasSaved.editor_font_size)
+    editor.editBox:SetFont(fontPath, WeakAurasSaved.editor_font_size, "")
   end
   group:AddChild(editor)
+  editor.frame:SetClipsChildren(true)
 
   local originalOnCursorChanged = editor.editBox:GetScript("OnCursorChanged")
   editor.editBox:SetScript("OnCursorChanged", function(self, ...)
@@ -184,6 +191,7 @@ local function ConstructTextEditor(frame)
   local originalGetText = editor.editBox.GetText
   local originalSetText = editor.editBox.SetText
   set_scheme()
+  LAAC:enable(editor.editBox)
   IndentationLib.enable(editor.editBox, color_scheme, WeakAurasSaved.editor_tab_spaces)
 
   local cancel = CreateFrame("Button", nil, group.frame, "UIPanelButtonTemplate")
@@ -226,7 +234,8 @@ local function ConstructTextEditor(frame)
   helpButton:SetWidth(100)
   helpButton:SetText(L["Help"])
 
-  local dropdown = CreateFrame("Frame", "SettingsMenuFrame", settings_frame, "UIDropDownMenuTemplate")
+  local dropdown = LibDD:Create_UIDropDownMenu("SettingsMenuFrame", settings_frame)
+
 
   local function settings_dropdown_initialize(frame, level, menu)
     if level == 1 then
@@ -243,9 +252,9 @@ local function ConstructTextEditor(frame)
             editor.editBox:SetText(editor.editBox:GetText())
           end
         }
-        UIDropDownMenu_AddButton(item, level)
+        LibDD:UIDropDownMenu_AddButton(item, level)
       end
-      UIDropDownMenu_AddButton(
+      LibDD:UIDropDownMenu_AddButton(
         {
           text = L["Bracket Matching"],
           isNotRadio = true,
@@ -257,7 +266,7 @@ local function ConstructTextEditor(frame)
           end
         },
       level)
-      UIDropDownMenu_AddButton(
+      LibDD:UIDropDownMenu_AddButton(
         {
           text = L["Indent Size"],
           hasArrow = true,
@@ -265,7 +274,7 @@ local function ConstructTextEditor(frame)
           menuList = "spaces"
         },
       level)
-      UIDropDownMenu_AddButton(
+      LibDD:UIDropDownMenu_AddButton(
         {
           text = WeakAuras.newFeatureString .. L["Font Size"],
           hasArrow = true,
@@ -276,7 +285,7 @@ local function ConstructTextEditor(frame)
     elseif menu == "spaces" then
       local spaces = {2,4}
       for _, i in pairs(spaces) do
-        UIDropDownMenu_AddButton(
+        LibDD:UIDropDownMenu_AddButton(
           {
             text = i,
             isNotRadio = false,
@@ -295,7 +304,7 @@ local function ConstructTextEditor(frame)
     elseif menu == "sizes" then
       local sizes = {10, 12, 14, 16}
       for _, i in pairs(sizes) do
-        UIDropDownMenu_AddButton(
+        LibDD:UIDropDownMenu_AddButton(
           {
             text = i,
             isNotRadio = false,
@@ -304,19 +313,19 @@ local function ConstructTextEditor(frame)
             end,
             func = function()
               WeakAurasSaved.editor_font_size = i
-              editor.editBox:SetFont(fontPath, WeakAurasSaved.editor_font_size)
+              editor.editBox:SetFont(fontPath, WeakAurasSaved.editor_font_size, "")
             end
           },
         level)
       end
     end
   end
-  UIDropDownMenu_Initialize(dropdown, settings_dropdown_initialize, "MENU")
+  LibDD:UIDropDownMenu_Initialize(dropdown, settings_dropdown_initialize, "MENU")
 
   settings_frame:SetScript(
     "OnClick",
     function(self, button, down)
-      ToggleDropDownMenu(1, nil, dropdown, settings_frame, 0, 0)
+      LibDD:ToggleDropDownMenu(1, nil, dropdown, settings_frame, 0, 0)
     end
   )
 
@@ -420,12 +429,16 @@ local function ConstructTextEditor(frame)
   local apiSearchFrame
 
   -- Make sidebar for snippets
-  local snippetsFrame = CreateFrame("Frame", "WeakAurasSnippets", group.frame)
-  WeakAuras.XMLTemplates["PortraitFrameTemplate"](snippetsFrame)
-  snippetsFrame:HidePortrait()
+  local snippetsFrame = CreateFrame("Frame", "WeakAurasSnippets", group.frame, "PortraitFrameTemplate")
+  ButtonFrameTemplate_HidePortrait(snippetsFrame)
   snippetsFrame:SetPoint("TOPLEFT", group.frame, "TOPRIGHT", 20, 0)
   snippetsFrame:SetPoint("BOTTOMLEFT", group.frame, "BOTTOMRIGHT", 20, 0)
   snippetsFrame:SetWidth(250)
+  if snippetsFrame.Bg then
+    local color = CreateColorFromHexString("ff1f1e21") -- PANEL_BACKGROUND_COLOR
+    local r, g, b = color:GetRGB()
+    snippetsFrame.Bg:SetColorTexture(r, g, b, 0.8)
+  end
 
   -- Add button to save new snippet
   local AddSnippetButton = CreateFrame("Button", nil, snippetsFrame, "UIPanelButtonTemplate")
@@ -506,35 +519,37 @@ local function ConstructTextEditor(frame)
   apiSearchButton:RegisterForClicks("LeftButtonUp")
 
   -- Make sidebar for apiSearch
-  apiSearchFrame = CreateFrame("Frame", "WeakAurasAPISearchFrame", group.frame)
-  WeakAuras.XMLTemplates["PortraitFrameTemplate"](apiSearchFrame)
-  apiSearchFrame:HidePortrait()
+  apiSearchFrame = CreateFrame("Frame", "WeakAurasAPISearchFrame", group.frame, "PortraitFrameTemplate")
+  ButtonFrameTemplate_HidePortrait(apiSearchFrame)
   apiSearchFrame:SetWidth(350)
+  if apiSearchFrame.Bg then
+    local color = CreateColorFromHexString("ff1f1e21") -- PANEL_BACKGROUND_COLOR
+    local r, g, b = color:GetRGB()
+    apiSearchFrame.Bg:SetColorTexture(r, g, b, 0.8)
+  end
 
   local makeAPISearch
   local APISearchTextChangeDelay = 0.3
   local APISearchCTimer
 
   -- filter line
-  local filterInput = CreateFrame("EditBox", "WeakAurasAPISearchFilterInput", apiSearchFrame)
-  WeakAuras.XMLTemplates["SearchBoxTemplate"](filterInput)
-  filterInput:SetFrameLevel(5)
+  local filterInput = CreateFrame("EditBox", "WeakAurasAPISearchFilterInput", apiSearchFrame, "SearchBoxTemplate")
   filterInput:SetScript("OnTextChanged", function(self)
-    WA_SearchBoxTemplate_OnTextChanged(self)
-    if APISearchCTimer and WeakAuras.timer:TimeLeft(APISearchCTimer) then
-      WeakAuras.timer:CancelTimer(APISearchCTimer)
+    SearchBoxTemplate_OnTextChanged(self)
+    if APISearchCTimer then
+      APISearchCTimer:Cancel()
     end
-    APISearchCTimer = WeakAuras.timer:ScheduleTimer(
+    APISearchCTimer = C_Timer.NewTimer(
+      APISearchTextChangeDelay,
       function()
         makeAPISearch(filterInput:GetText())
-      end,
-      APISearchTextChangeDelay
+      end
     )
   end)
   filterInput:SetHeight(15)
   filterInput:SetPoint("TOPLEFT", apiSearchFrame, "TOPLEFT", 17, -30)
   filterInput:SetPoint("TOPRIGHT", apiSearchFrame, "TOPRIGHT", -10, -30)
-  filterInput:SetFont(STANDARD_TEXT_FONT, 10)
+  filterInput:SetFont(STANDARD_TEXT_FONT, 10, "")
 
   local apiSearchScrollContainer = AceGUI:Create("SimpleGroup")
   apiSearchScrollContainer:SetFullWidth(true)
@@ -565,29 +580,14 @@ local function ConstructTextEditor(frame)
   end
 
   local function loadBlizzardAPIDocumentation()
-    local apiAddonName = "APIDocumentation"
-    local _, loaded = IsAddOnLoaded(apiAddonName)
+    local apiAddonName = "Blizzard_APIDocumentation"
+    local _, loaded = C_AddOns.IsAddOnLoaded(apiAddonName)
     if not loaded then
-      local ok, ret = LoadAddOn(apiAddonName)
-      if not ok then
-        local messages = { L["AddOn: APIDocumentation is %s."]:format(ret) }
-        if ret == "DISABLED" then
-          table.insert(messages, L["Please enable it in your AddOn list."])
-        elseif ret == "MISSING" then
-          table.insert(messages, L["Please install it."])
-        end
-        WeakAuras.prettyPrint(table.concat(messages, " "))
-        return
-      end
-    end
-    if type(APIDocumentation) ~= "table" or type(APIDocumentation.systems) ~= "table" then
-      WeakAuras.prettyPrint(L["AddOn: APIDocumentation is not loaded correctly."])
-      return
+      C_AddOns.LoadAddOn(apiAddonName)
     end
     if #APIDocumentation.systems == 0 then
-      APIDocumentation:OnLoad()
+      APIDocumentation_LoadUI()
     end
-    return true
   end
 
   local function addLine(results, apiInfo)
@@ -664,9 +664,7 @@ local function ConstructTextEditor(frame)
 
   local lastSearch = nil
   makeAPISearch = function(apiToSearchFor)
-    if not loadBlizzardAPIDocumentation() then
-      return
-    end
+    loadBlizzardAPIDocumentation()
     local results
     if not apiToSearchFor or #apiToSearchFor < 4 then
       if lastSearch == "" then return end
@@ -726,8 +724,7 @@ local function ConstructTextEditor(frame)
   editor.editBox.timeMachinePos = 1
   local TimeMachineMaximumRollback = 10
 
-  -- These events aren’t supported in the editbox, so we add undo/redo buttons below instead...
-  --[[editor.editBox:HookScript(
+  editor.editBox:HookScript(
     "OnKeyDown",
     function(self, key)
       -- CTRL + S saves and closes
@@ -751,7 +748,7 @@ local function ConstructTextEditor(frame)
         end
       end
     end
-  )]]
+  )
 
   editor.editBox:HookScript(
     "OnTextChanged",
@@ -827,7 +824,7 @@ local function ConstructTextEditor(frame)
   )
 
   local editorError = group.frame:CreateFontString(nil, "OVERLAY")
-  editorError:SetFont(STANDARD_TEXT_FONT, 12)
+  editorError:SetFont(STANDARD_TEXT_FONT, 12, "")
   editorError:SetJustifyH("LEFT")
   editorError:SetJustifyV("TOP")
   editorError:SetTextColor(1, 0, 0)
@@ -835,11 +832,10 @@ local function ConstructTextEditor(frame)
   editorError:SetPoint("RIGHT", settings_frame, "LEFT")
   group.editorError = editorError
 
-  local editorLine = CreateFrame("EditBox", nil, group.frame)
-  WeakAuras.XMLTemplates["InputBoxTemplate"](editorLine)
+  local editorLine = CreateFrame("EditBox", nil, group.frame, "InputBoxTemplate")
   -- Set script on enter pressed..
   editorLine:SetPoint("RIGHT", snippetsButton, "LEFT", -10, 0)
-  editorLine:SetFont(STANDARD_TEXT_FONT, 10)
+  editorLine:SetFont(STANDARD_TEXT_FONT, 10, "")
   editorLine:SetJustifyH("RIGHT")
   editorLine:SetWidth(30)
   editorLine:SetHeight(20)
@@ -852,54 +848,6 @@ local function ConstructTextEditor(frame)
   editorLineText:SetTextColor(1, 1, 1)
   editorLineText:SetText(L["Line"])
   editorLineText:SetPoint("RIGHT", editorLine, "LEFT", -8, 0)
-
-  local redoButton = CreateFrame("Button", nil, editorLine)
-  redoButton:SetPoint("RIGHT", editorLineText, "LEFT", -10, 0)
-  redoButton:SetSize(20, 20)
-  redoButton:SetNormalTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\undo")
-  local redoNormal = redoButton:GetNormalTexture()
-  redoNormal:SetAllPoints()
-  redoNormal:SetTexCoord(1, 0, 0, 1)
-  redoNormal:SetBlendMode("BLEND")
-  redoButton:SetHighlightTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\undo-highlight")
-  local redoHighlight = redoButton:GetHighlightTexture()
-  redoHighlight:SetAllPoints()
-  redoHighlight:SetTexCoord(1, 0, 0, 1)
-  redoHighlight:SetBlendMode("BLEND")
-
-  local undoButton = CreateFrame("Button", nil, redoButton)
-  undoButton:SetPoint("RIGHT", redoButton, "LEFT", -10, 0)
-  undoButton:SetSize(20, 20)
-  undoButton:SetNormalTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\undo")
-  local undoNormal = undoButton:GetNormalTexture()
-  undoNormal:SetAllPoints()
-  undoNormal:SetTexCoord(0, 1, 0, 1)
-  undoNormal:SetBlendMode("BLEND")
-  undoButton:SetHighlightTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\undo-highlight")
-  local undoHighlight = undoButton:GetHighlightTexture()
-  undoHighlight:SetAllPoints()
-  undoHighlight:SetTexCoord(0, 1, 0, 1)
-  undoHighlight:SetBlendMode("BLEND")
-
-  redoButton:SetScript("OnClick", function()
-    local self = editor.editBox
-    if self.timeMachine[self.timeMachinePos - 1] then
-      self.timeMachinePos = self.timeMachinePos - 1
-      self.skipOnTextChanged = true
-      originalSetText(self, self.timeMachine[self.timeMachinePos][1])
-      self:SetCursorPosition(self.timeMachine[self.timeMachinePos][2])
-    end
-  end)
-
-  undoButton:SetScript("OnClick", function()
-    local self = editor.editBox
-    if self.timeMachine[self.timeMachinePos + 1] then
-      self.timeMachinePos = self.timeMachinePos + 1
-      self.skipOnTextChanged = true
-      originalSetText(self, self.timeMachine[self.timeMachinePos][1])
-      self:SetCursorPosition(self.timeMachine[self.timeMachinePos][2])
-    end
-  end)
 
   helpButton:SetScript("OnClick", function()
     OptionsPrivate.ToggleTip(helpButton, group.url, L["Help"], "")

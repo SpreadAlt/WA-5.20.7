@@ -85,11 +85,11 @@ local function constructor()
   frame.sndButton = sndButton
 
   local icon = sndButton:CreateTexture(nil, "BACKGROUND")
-  icon:SetTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\VoiceChat-Speaker") --"Interface\\Common\\VoiceChat-Speaker"
+  icon:SetTexture(130979) --"Interface\\Common\\VoiceChat-Speaker"
   icon:SetAllPoints(sndButton)
 
   local highlight = sndButton:CreateTexture(nil, "HIGHLIGHT")
-  highlight:SetTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\VoiceChat-On") --"Interface\\Common\\VoiceChat-On"
+  highlight:SetTexture(130977) --"Interface\\Common\\VoiceChat-On"
   highlight:SetAllPoints(sndButton)
 
   AceGUI:RegisterAsWidget(self)

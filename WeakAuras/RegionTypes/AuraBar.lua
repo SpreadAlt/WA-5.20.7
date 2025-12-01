@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
 local SharedMedia = LibStub("LibSharedMedia-3.0");
@@ -92,7 +94,7 @@ local properties = {
     setter = "SetGradientEnabled",
     type = "bool",
   },
-  icon_visible = {
+  icon = {
     display = {L["Icon"], L["Visibility"]},
     setter = "SetIconVisible",
     type = "bool"
@@ -262,6 +264,8 @@ local anchorAlignment = {
   ["VERTICAL_INVERSE"] = { "BOTTOMLEFT", "BOTTOMRIGHT", "TOP" }
 }
 
+local extraTextureWrapMode = "REPEAT";
+
 -- Emulate blizzard statusbar with advanced features (more grow directions)
 local barPrototype = {
   ["UpdateAnchors"] = function(self)
@@ -355,6 +359,7 @@ local barPrototype = {
       for index, additionalBar in ipairs(self.additionalBars) do
         if (not self.extraTextures[index]) then
           local extraTexture = self:CreateTexture(nil, "ARTWORK");
+          extraTexture:SetTexelSnappingBias(0)
           extraTexture:SetDrawLayer("ARTWORK", min(index, 7));
           self.extraTextures[index] = extraTexture;
         end
@@ -421,10 +426,10 @@ local barPrototype = {
 
           local texture = self.additionalBarsTextures and self.additionalBarsTextures[index];
           if texture then
-            local texturePath = SharedMedia:Fetch("statusbar", texture) or ""
-            extraTexture:SetTexture(texturePath)
+            local texturePath = SharedMedia:Fetch("statusbar_atlas", texture, true) or SharedMedia:Fetch("statusbar", texture) or ""
+            Private.SetTextureOrAtlas(extraTexture, texturePath, extraTextureWrapMode, extraTextureWrapMode)
           else
-            extraTexture:SetTexture(self:GetStatusBarTexture());
+            Private.SetTextureOrAtlas(extraTexture, self:GetStatusBarTexture(), extraTextureWrapMode, extraTextureWrapMode)
           end
 
           local xOffset = 0;
@@ -570,15 +575,15 @@ local barPrototype = {
 
   -- Blizzard like SetStatusBarTexture
   ["SetStatusBarTexture"] = function(self, texture)
-    self.fg:SetTexture(texture);
-    self.bg:SetTexture(texture);
+    Private.SetTextureOrAtlas(self.fg, texture)
+    Private.SetTextureOrAtlas(self.bg, texture)
     for index, extraTexture in ipairs(self.extraTextures) do
-      extraTexture:SetTexture(texture);
+      Private.SetTextureOrAtlas(extraTexture, texture, extraTextureWrapMode, extraTextureWrapMode)
     end
   end,
 
   ["GetStatusBarTexture"] = function(self)
-    return self.fg:GetTexture();
+    return self.fg:GetAtlas() or self.fg:GetTexture()
   end,
 
   -- Set bar color
@@ -587,7 +592,12 @@ local barPrototype = {
   end,
 
   ["SetForegroundGradient"] = function(self, orientation, r1, g1, b1, a1, r2, g2, b2, a2)
-    self.fg:SetGradientAlpha(orientation, r1, g1, b1, a1, r2, g2, b2, a2)
+    if self.fg.SetGradientAlpha then
+      self.fg:SetGradientAlpha(orientation, r1, g1, b1, a1, r2, g2, b2, a2)
+    else
+      self.fg:SetGradient(orientation, CreateColor(r1, g1, b1, a1),
+                                       CreateColor(r2, g2, b2, a2))
+    end
   end,
 
   -- Set background color
@@ -971,7 +981,7 @@ local funcs = {
     if self.textureSource == "Picker" then
       texturePath = self.textureInput or ""
     else
-      texturePath = SharedMedia:Fetch("statusbar", self.texture) or ""
+      texturePath = SharedMedia:Fetch("statusbar_atlas", self.texture, true) or SharedMedia:Fetch("statusbar", self.texture) or ""
     end
     self.bar:SetStatusBarTexture(texturePath)
   end,
@@ -1036,7 +1046,7 @@ local funcs = {
     end
 
     iconPath = iconPath or self.displayIcon or "Interface\\Icons\\INV_Misc_QuestionMark"
-    Private.SetTextureOrSpellTexture(self.icon, iconPath)
+    Private.SetTextureOrAtlas(self.icon, iconPath)
   end,
   SetOverlayColor = function(self, id, r, g, b, a)
     self.bar:SetAdditionalBarColor(id, { r, g, b, a});
@@ -1132,43 +1142,44 @@ local funcs = {
   end
 }
 
-local function setDesaturated(self, desaturated, ...)
-  self.isDesaturated = desaturated and 1 or 0
-  return self._SetDesaturated(self, desaturated, ...)
-end
-
-local function setTexture(self, ...)
-  local apply = self._SetTexture(self, ...)
-  if self.isDesaturated ~= nil then
-    self:_SetDesaturated(self.isDesaturated)
-  end
-  return apply
-end
-
 -- Called when first creating a new region/display
 local function create(parent)
   -- Create overall region (containing everything else)
   local region = CreateFrame("Frame", nil, parent);
+  --- @cast region table|Frame
   region.regionType = "aurabar"
   region:SetMovable(true);
   region:SetResizable(true);
-  region:SetMinResize(1, 1);
+  region:SetResizeBounds(1, 1)
 
-  local fgMask = CreateFrame("Frame", nil, region)
-
-  -- Create statusbar (inherit prototype)
   local bar = CreateFrame("Frame", nil, region);
-  WeakAuras.Mixin(bar, Private.SmoothStatusBarMixin);
-  fgMask:SetAllPoints(bar);
+  --- @cast bar table|Frame
+  Mixin(bar, Private.SmoothStatusBarMixin);
 
   -- Now create a bunch of textures
-  local bg = region:CreateTexture(nil, "BACKGROUND");
+  local bg = region:CreateTexture(nil, "ARTWORK");
+  bg:SetTexelSnappingBias(0)
+  bg:SetSnapToPixelGrid(false)
   bg:SetAllPoints(bar);
 
-  local fg = fgMask:CreateTexture(nil, "BORDER");
-  fg:SetAllPoints(fgMask)
+  local fg = bar:CreateTexture(nil, "ARTWORK");
+  fg:SetTexelSnappingBias(0)
+  fg:SetSnapToPixelGrid(false)
+  fg:SetAllPoints(bar)
 
-  local spark = fgMask:CreateTexture(nil, "ARTWORK");
+  local fgMask = bar:CreateMaskTexture()
+  fgMask:SetTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\Square_FullWhite",
+                    "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE", "NEAREST")
+  fgMask:SetTexelSnappingBias(0)
+  fgMask:SetSnapToPixelGrid(false)
+  fg:AddMaskTexture(fgMask)
+
+  local spark = bar:CreateTexture(nil, "ARTWORK");
+  spark:SetSnapToPixelGrid(false)
+  spark:SetTexelSnappingBias(0)
+  fg:SetDrawLayer("ARTWORK", 0);
+  bg:SetDrawLayer("ARTWORK", -1);
+  spark:SetDrawLayer("ARTWORK", 7);
   bar.fg = fg;
   bar.fgMask = fgMask
   bar.bg = bg;
@@ -1185,13 +1196,10 @@ local function create(parent)
   local iconFrame = CreateFrame("Frame", nil, region);
   region.iconFrame = iconFrame;
   local icon = iconFrame:CreateTexture(nil, "OVERLAY");
+  icon:SetSnapToPixelGrid(false)
+  icon:SetTexelSnappingBias(0)
   region.icon = icon;
   icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark");
-
-  icon._SetDesaturated = icon.SetDesaturated
-  icon.SetDesaturated = setDesaturated
-  icon._SetTexture = icon.SetTexture
-  icon.SetTexture = setTexture
 
   local oldSetFrameLevel = region.SetFrameLevel;
   function region.SetFrameLevel(self, frameLevel)
@@ -1270,7 +1278,7 @@ local function modify(parent, region, data)
   region:UpdateStatusBarTexture();
   bar:SetBackgroundColor(data.backgroundColor[1], data.backgroundColor[2], data.backgroundColor[3], data.backgroundColor[4]);
   -- Update spark settings
-  bar.spark:SetTexture(data.sparkTexture);
+  Private.SetTextureOrAtlas(bar.spark, data.sparkTexture);
   bar.spark:SetVertexColor(data.sparkColor[1], data.sparkColor[2], data.sparkColor[3], data.sparkColor[4]);
   bar.spark:SetWidth(data.sparkWidth);
   bar.spark:SetHeight(data.sparkHeight);
@@ -1324,11 +1332,11 @@ local function modify(parent, region, data)
       end);
       region.tooltipFrame:SetScript("OnLeave", Private.HideTooltip);
     end
-
-    region.tooltipFrame:EnableMouse(true);
+    region.tooltipFrame:EnableMouseMotion(true);
+    region.tooltipFrame:SetMouseClickEnabled(false);
   elseif region.tooltipFrame then
     -- Disable tooltip
-    region.tooltipFrame:EnableMouse(false);
+    region.tooltipFrame:EnableMouseMotion(false);
   end
 
   region.FrameTick = nil

@@ -54,8 +54,7 @@ local methods = {
 Constructor
 -------------------------------------------------------------------------------]]
 local function Constructor()
-	local widgetNum = AceGUI:GetNextWidgetNum(Type)
-	local frame = CreateFrame("Frame", Type .. widgetNum, UIParent)
+	local frame = CreateFrame("Frame", nil, UIParent)
 	frame:SetFrameStrata("FULLSCREEN_DIALOG")
 
 	--Container Support
@@ -63,6 +62,7 @@ local function Constructor()
 	content:SetPoint("TOPLEFT", 0, 0)
 	content:SetPoint("BOTTOMRIGHT", 0, 0)
 
+  --- @type table<string, any>
 	local widget = {
 		frame     = frame,
 		content   = content,

@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local L = WeakAuras.L
@@ -30,7 +32,7 @@ local function createOptions(id, data)
           color = "color",
           mirror = "mirror",
           blendMode = "blendMode"
-        }, OptionsPrivate.Private.texture_types);
+        }, OptionsPrivate.Private.texture_types, nil, true)
       end,
       imageWidth = 24,
       imageHeight = 24,
@@ -74,11 +76,20 @@ local function createOptions(id, data)
       name = L["Mirror"],
       order = 6
     },
+    textureWrapMode = {
+      type = "select",
+      width = WeakAuras.normalWidth,
+      name = L["Texture Wrap"],
+      order = 7,
+      values = OptionsPrivate.Private.texture_wrap_types,
+      hidden = OptionsPrivate.Private.TextureBase.IsAtlas(data.texture)
+    },
     rotate = {
       type = "toggle",
       width = WeakAuras.normalWidth,
       name = L["Allow Full Rotation"],
       order = 8,
+      hidden = OptionsPrivate.Private.TextureBase.IsAtlas(data.texture)
     },
     rotation = {
       type = "range",
@@ -145,7 +156,7 @@ local function modifyThumbnail(parent, region, data, fullModify, size)
     region.texture:SetHeight(scale * data.height);
   end
 
-  region.texture:SetTexture(data.texture);
+  OptionsPrivate.Private.SetTextureOrAtlas(region.texture, data.texture, data.textureWrapMode, data.textureWrapMode);
   region.texture:SetVertexColor(data.color[1], data.color[2], data.color[3], data.color[4]);
   region.texture:SetBlendMode(data.blendMode);
 
@@ -183,7 +194,7 @@ local templates = {
   {
     title = L["Star"],
     data = {
-      texture = "Spells\\T_Star3",
+      texture = "241049", -- Spells\\T_Star3
       blendMode = "ADD",
       width = 200,
       height = 200,
@@ -193,7 +204,7 @@ local templates = {
   {
     title = L["Leaf"],
     data = {
-      texture = "Spells\\Nature_Rune_128",
+      texture = "166606", -- Spells\\Nature_Rune_128
       blendMode = "ADD",
       width = 200,
       height = 200,
@@ -203,7 +214,7 @@ local templates = {
   {
     title = L["Hawk"],
     data = {
-      texture = "Spells\\Aspect_Hawk",
+      texture = "165609", -- Spells\\Aspect_Hawk
       blendMode = "ADD",
       width = 200,
       height = 200,
@@ -221,6 +232,10 @@ local templates = {
     }
   },
 }
+
+if WeakAuras.IsClassicEra() then
+  table.remove(templates, 2)
+end
 
 OptionsPrivate.registerRegions = OptionsPrivate.registerRegions or {}
 table.insert(OptionsPrivate.registerRegions, function()

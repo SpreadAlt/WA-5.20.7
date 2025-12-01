@@ -19,7 +19,9 @@ If target is installed data, or is a uid which points to installed data, then th
 
 ]]--
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
 -- Lua APIs
@@ -29,6 +31,7 @@ local pairs, type, unpack = pairs, type, unpack
 local error = error
 local bit_band, bit_lshift, bit_rshift = bit.band, bit.lshift, bit.rshift
 
+---@class WeakAuras
 local WeakAuras = WeakAuras;
 local L = WeakAuras.L;
 
@@ -155,7 +158,7 @@ local function filterFunc(_, event, msg, player, l, cs, t, flag, channelId, ...)
       characterName = characterName:gsub("|c[Ff][Ff]......", ""):gsub("|r", "");
       displayName = displayName:gsub("|c[Ff][Ff]......", ""):gsub("|r", "");
       newMsg = newMsg..remaining:sub(1, start-1);
-      newMsg = newMsg.."|HBNplayer::weakauras|h|cFF8800FF["..characterName.." |r|cFF8800FF- "..displayName.."]|h|r";
+      newMsg = newMsg.."|Hgarrmission:weakauras|h|cFF8800FF["..characterName.." |r|cFF8800FF- "..displayName.."]|h|r";
       remaining = remaining:sub(finish + 1);
       anyLinkFound = true
     else
@@ -164,14 +167,26 @@ local function filterFunc(_, event, msg, player, l, cs, t, flag, channelId, ...)
     end
   until(done)
   if anyLinkFound then
-    if event == "CHAT_MSG_WHISPER" and not UnitInRaid(player) and not UnitInParty(player) then -- XXX: Need a guild check
+    local trimmedPlayer = Ambiguate(player, "none")
+    local guid = select(5, ...)
+    if event == "CHAT_MSG_WHISPER" and not UnitInRaid(trimmedPlayer) and not UnitInParty(trimmedPlayer) and not (IsGuildMember and IsGuildMember(guid)) then
       local _, num = BNGetNumFriends()
       for i=1, num do
-        local toon = BNGetNumFriendToons(i)
-        for j=1, toon do
-          local _, rName, rGame = BNGetFriendToonInfo(i, j)
-          if rName == player and rGame == "WoW" then
-            return false, newMsg, player, l, cs, t, flag, channelId, ...; -- Player is a real id friend, allow it
+        if C_BattleNet then -- introduced in 8.2.5 PTR
+          local toon = C_BattleNet.GetFriendNumGameAccounts(i)
+          for j=1, toon do
+            local gameAccountInfo = C_BattleNet.GetFriendGameAccountInfo(i, j);
+            if gameAccountInfo.characterName == trimmedPlayer and gameAccountInfo.clientProgram == "WoW" then
+              return false, newMsg, player, l, cs, t, flag, channelId, ...; -- Player is a real id friend, allow it
+            end
+          end
+        else -- keep old method for 8.2 and Classic
+          local toon = BNGetNumFriendGameAccounts(i)
+          for j=1, toon do
+            local _, rName, rGame = BNGetFriendGameAccountInfo(i, j)
+            if rName == trimmedPlayer and rGame == "WoW" then
+              return false, newMsg, player, l, cs, t, flag, channelId, ...; -- Player is a real id friend, allow it
+            end
           end
         end
       end
@@ -195,14 +210,15 @@ ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER", filterFunc)
 ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER_INFORM", filterFunc)
 ChatFrame_AddMessageEventFilter("CHAT_MSG_BN_WHISPER", filterFunc)
 ChatFrame_AddMessageEventFilter("CHAT_MSG_BN_WHISPER_INFORM", filterFunc)
-ChatFrame_AddMessageEventFilter("CHAT_MSG_BATTLEGROUND", filterFunc)
-ChatFrame_AddMessageEventFilter("CHAT_MSG_BATTLEGROUND_LEADER", filterFunc)
+ChatFrame_AddMessageEventFilter("CHAT_MSG_INSTANCE_CHAT", filterFunc)
+ChatFrame_AddMessageEventFilter("CHAT_MSG_INSTANCE_CHAT_LEADER", filterFunc)
 
 local Compresser = LibStub:GetLibrary("LibCompress")
 local LibDeflate = LibStub:GetLibrary("LibDeflate")
 local Serializer = LibStub:GetLibrary("AceSerializer-3.0")
 local LibSerialize = LibStub("LibSerialize")
 local Comm = LibStub:GetLibrary("AceComm-3.0")
+local Chomp = LibStub:GetLibrary("Chomp")
 -- the biggest bottleneck by far is in transmission and printing; so use maximal compression
 local configForDeflate = {level = 9}
 local configForLS = {
@@ -213,8 +229,8 @@ local tooltipLoading;
 local receivedData;
 
 hooksecurefunc("SetItemRef", function(link, text)
-  if(link == "BNplayer::weakauras") then
-    local _, _, characterName, displayName = text:find("|HBNplayer::weakauras|h|cFF8800FF%[([^%s]+) |r|cFF8800FF%- (.*)%]|h");
+  if(link == "garrmission:weakauras") then
+    local _, _, characterName, displayName = text:find("|Hgarrmission:weakauras|h|cFF8800FF%[([^%s]+) |r|cFF8800FF%- (.*)%]|h");
     if(characterName and displayName) then
       characterName = characterName:gsub("|c[Ff][Ff]......", ""):gsub("|r", "");
       displayName = displayName:gsub("|c[Ff][Ff]......", ""):gsub("|r", "");
@@ -588,8 +604,16 @@ end
 
 local safeSenders = {}
 function RequestDisplay(characterName, displayName)
+  local characterNameAmbiguate = Ambiguate(characterName, "none")
   safeSenders[characterName] = true
+  safeSenders[characterNameAmbiguate] = true
+
   local version = nil
+  if characterNameAmbiguate:find("-", 1, true) then
+    -- Cross realm transfer, use chomp
+    version = 2
+  end
+
   local transmit = {
     m = "dR",
     d = displayName,
@@ -610,9 +634,23 @@ end
 function TransmitDisplay(id, characterName, version)
   local encoded = Private.DisplayToString(id);
   if(encoded ~= "") then
-    Comm:SendCommMessage("WeakAuras", encoded, "WHISPER", characterName, "BULK", function(displayName, done, total)
-      Comm:SendCommMessage("WeakAurasProg", done.." "..total.." "..displayName, "WHISPER", characterName, "ALERT");
-    end, id);
+    if version == 2  then
+      -- Cross Realm communication
+      local total = #encoded
+      local messageOptions = {
+        serialize = false,
+        binaryBlob = true
+      }
+
+      Chomp.SmartAddonMessage("WeakAuras2", encoded, "WHISPER", characterName, messageOptions)
+      -- Chomp has no progress callback for SmartAddonMessage. Send a -1 as progress info
+      local done = -1
+      Comm:SendCommMessage("WeakAurasProg", done.." "..total.." "..id, "WHISPER", characterName, "ALERT");
+    else
+      Comm:SendCommMessage("WeakAuras", encoded, "WHISPER", characterName, "BULK", function(displayName, done, total)
+        Comm:SendCommMessage("WeakAurasProg", done.." "..total.." "..displayName, "WHISPER", characterName, "ALERT");
+      end, id);
+    end
   else
     TransmitError("dne", characterName);
   end
@@ -633,17 +671,17 @@ local function HandleProgressComm(prefix, message, distribution, sender)
           {2, L["Receiving %s Bytes"]:format(total)}
         })
       elseif total >= done then
-      local red = min(255, (1 - done / total) * 511)
-      local green = min(255, (done / total) * 511)
-      ShowTooltip({
-        {2, "WeakAuras", displayName, 0.5, 0, 1, 1, 1, 1},
-        {1, L["Receiving display information"]:format(sender), 1, 0.82, 0},
-        {2, " ", ("|cFF%2x%2x00"):format(red, green)..done.."|cFF00FF00/"..total}
-      })
-    end
+        local red = min(255, (1 - done / total) * 511)
+        local green = min(255, (done / total) * 511)
+        ShowTooltip({
+          {2, "WeakAuras", displayName, 0.5, 0, 1, 1, 1, 1},
+          {1, L["Receiving display information"]:format(sender), 1, 0.82, 0},
+          {2, " ", ("|cFF%2x%2x00"):format(red, green)..done.."|cFF00FF00/"..total}
+        })
       end
     end
   end
+end
 
 local function HandleComm(prefix, message, distribution, sender)
   local linkValidityDuration = 60 * 5
@@ -712,5 +750,6 @@ end
 
 Comm:RegisterComm("WeakAurasProg", HandleProgressComm)
 Comm:RegisterComm("WeakAuras", HandleComm)
+Chomp.RegisterAddonPrefix("WeakAuras2", HandleComm)
 
 

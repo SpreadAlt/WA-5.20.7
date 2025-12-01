@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
 local SharedMedia = LibStub("LibSharedMedia-3.0");
@@ -35,7 +37,7 @@ local function create(parent)
   region:SetHeight(2);
 
   -- Border region
-  local border = CreateFrame("Frame", nil, region);
+  local border = CreateFrame("Frame", nil, region, "BackdropTemplate")
   region.border = border;
 
   Private.regionPrototype.create(region);

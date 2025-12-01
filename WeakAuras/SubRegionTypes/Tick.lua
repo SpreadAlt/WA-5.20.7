@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
 local L = WeakAuras.L;
@@ -195,14 +197,13 @@ local funcs = {
     self.tick_color[1], self.tick_color[2], self.tick_color[3], self.tick_color[4] = r, g, b, a or 1
     if self.use_texture then
       for _, tick in ipairs(self.ticks) do
-        tick:SetTexture(r, g, b, a or 1)
         tick:SetVertexColor(r, g, b, a or 1)
       end
       self:UpdateTickDesaturated()
     else
       for _, tick in ipairs(self.ticks) do
         tick:SetVertexColor(r, g, b, a or 1)
-        tick:SetTexture(r, g, b, a or 1)
+        tick:SetColorTexture(r, g, b, a or 1)
       end
     end
   end,
@@ -420,11 +421,11 @@ local funcs = {
   UpdateTexture = function(self)
     if self.use_texture then
       for _, tick in ipairs(self.ticks) do
-        tick:SetTexture(tick, self.tick_texture)
+        Private.SetTextureOrAtlas(tick, self.tick_texture, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
       end
     else
       for _, tick in ipairs(self.ticks) do
-        tick:SetTexture(self.tick_color[1], self.tick_color[2], self.tick_color[3], self.tick_color[4])
+        tick:SetColorTexture(self.tick_color[1], self.tick_color[2], self.tick_color[3], self.tick_color[4])
       end
     end
   end,
@@ -505,6 +506,8 @@ local function modify(parent, region, parentData, data, first)
 
     if region.ticks[i] == nil then
       local texture = region:CreateTexture()
+      texture:SetSnapToPixelGrid(false)
+      texture:SetTexelSnappingBias(0)
       texture:SetDrawLayer("ARTWORK", 3)
       texture:SetAllPoints()
       region.ticks[i] = texture
@@ -532,7 +535,7 @@ local function modify(parent, region, parentData, data, first)
 
   if data.use_texture then
     for _, tick in ipairs(region.ticks) do
-      tick:SetTexture(data.tick_texture)
+      Private.SetTextureOrAtlas(tick, data.tick_texture, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
     end
   end
 

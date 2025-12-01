@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 local L = WeakAuras.L;
 
@@ -38,9 +40,6 @@ do
   end
 
   local function subSetFrameLevel(self, level)
-    if self.parent.fgMask then
-      self.parent.fgMask:SetFrameLevel(level)
-    end
     if self.parent.bar then
       self.parent.bar:SetFrameLevel(level)
     end

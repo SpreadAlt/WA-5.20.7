@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local L = WeakAuras.L;
@@ -67,6 +69,7 @@ local function createDistributeAlignOptions(id, data)
         if(#data.controlledChildren < 1) then
           return nil;
         end
+        ---@type AnchorPoint?, AnchorPoint?, AnchorPoint?
         local alignedCenter, alignedRight, alignedLeft = "CENTER", "RIGHT", "LEFT";
         for index, childId in pairs(data.controlledChildren) do
           local childData = WeakAuras.GetData(childId);
@@ -133,6 +136,7 @@ local function createDistributeAlignOptions(id, data)
         if(#data.controlledChildren < 1) then
           return nil;
         end
+        ---@type AnchorPoint?, AnchorPoint?, AnchorPoint?
         local alignedCenter, alignedBottom, alignedTop = "CENTER", "RIGHT", "LEFT";
         for index, childId in pairs(data.controlledChildren) do
           local childData = WeakAuras.GetData(childId);
@@ -175,7 +179,7 @@ local function createDistributeAlignOptions(id, data)
               end
             elseif(v == "LEFT") then
               if(childData.selfPoint:find("BOTTOM")) then
-                childData.yOffset = 0 - getHeight(childData, childRegion);
+                childData.yOffset = 0 - ( childData.height or childRegion.height);
               elseif(childData.selfPoint:find("TOP")) then
                 childData.yOffset = 0;
               else
@@ -680,17 +684,17 @@ local function createDefaultIcon(parent)
   local t1 = defaultIcon:CreateTexture(nil, "ARTWORK");
   t1:SetWidth(24);
   t1:SetHeight(8);
-  t1:SetTexture(0.8, 0, 0, 0.5);
+  t1:SetColorTexture(0.8, 0, 0, 0.5);
   t1:SetPoint("TOP", parent, "TOP", 0, -6);
   local t2 = defaultIcon:CreateTexture(nil, "ARTWORK");
   t2:SetWidth(20);
   t2:SetHeight(20);
-  t2:SetTexture(0.2, 0.8, 0.2, 0.5);
+  t2:SetColorTexture(0.2, 0.8, 0.2, 0.5);
   t2:SetPoint("TOP", t1, "BOTTOM", 0, 5);
   local t3 = defaultIcon:CreateTexture(nil, "ARTWORK");
   t3:SetWidth(20);
   t3:SetHeight(12);
-  t3:SetTexture(0.1, 0.25, 1, 0.5);
+  t3:SetColorTexture(0.1, 0.25, 1, 0.5);
   t3:SetPoint("TOP", t2, "BOTTOM", -5, 8);
 
   return defaultIcon
@@ -700,7 +704,7 @@ end
 local function modifyThumbnail(parent, frame, data)
   function frame:SetIcon()
     if data.groupIcon then
-      local success = OptionsPrivate.Private.SetTextureOrSpellTexture(frame.icon, data.groupIcon)
+      local success = OptionsPrivate.Private.SetTextureOrAtlas(frame.icon, data.groupIcon)
       if success then
         if frame.defaultIcon then
           frame.defaultIcon:Hide()

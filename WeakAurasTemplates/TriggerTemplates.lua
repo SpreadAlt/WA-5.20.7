@@ -4,8 +4,8 @@ local AddonName, TemplatePrivate = ...
 
 local AceGUI = LibStub("AceGUI-3.0");
 local floor, ceil, tinsert = floor, ceil, tinsert;
-local CreateFrame, UnitClass, UnitRace = CreateFrame, UnitClass, UnitRace;
-
+local CreateFrame, UnitClass, UnitRace, GetSpecialization = CreateFrame, UnitClass, UnitRace, GetSpecialization;
+---@class WeakAuras
 local WeakAuras = WeakAuras;
 local L = WeakAuras.L
 
@@ -326,7 +326,7 @@ local function createTotemTrigger(triggers, position, item)
       type = WeakAuras.GetTriggerCategoryFor("Totem"),
       event = "Totem",
       use_totemName = item.totemNumber == nil,
-      totemName = GetSpellInfo(item.spell),
+      totemName = TemplatePrivate.Private.ExecEnv.GetSpellInfo(item.spell),
     }
   };
   if (item.totemNumber) then
@@ -465,6 +465,7 @@ end
 local function createThumbnail(parent)
   -- Preview frame
   local borderframe = CreateFrame("Frame", nil, parent);
+  --- @cast borderframe table|Frame
   borderframe:SetWidth(32);
   borderframe:SetHeight(32);
 
@@ -476,6 +477,7 @@ local function createThumbnail(parent)
 
   -- Main region
   local region = CreateFrame("Frame", nil, borderframe);
+  --- @cast region table|Frame
   borderframe.region = region;
 
   -- Preview children
@@ -491,7 +493,7 @@ local function subTypesFor(item, regionType)
     target = function()
       local thumbnail = createThumbnail();
       local t1 = thumbnail:CreateTexture(nil, "ARTWORK");
-      t1:SetTexture([[Interface/Icons/INV_Misc_PocketWatch_01]]);
+      t1:SetTexture(134376);
       t1:SetAllPoints(thumbnail);
 
       thumbnail.elapsed = 0;
@@ -512,7 +514,7 @@ local function subTypesFor(item, regionType)
     glow = function()
       local thumbnail = createThumbnail();
       local t1 = thumbnail:CreateTexture(nil, "ARTWORK");
-      t1:SetTexture([[Interface/Icons/INV_Misc_PocketWatch_01]]);
+      t1:SetTexture(134376);
       t1:SetAllPoints(thumbnail);
       WeakAuras.ShowOverlayGlow(thumbnail); -- where to call HideOverlayGlow() ?
       return thumbnail;
@@ -520,7 +522,7 @@ local function subTypesFor(item, regionType)
     charges = function()
       local thumbnail = createThumbnail();
       local t1 = thumbnail:CreateTexture(nil, "ARTWORK");
-      t1:SetTexture([[Interface/Icons/INV_Misc_PocketWatch_01]]);
+      t1:SetTexture(134376);
       t1:SetAllPoints(thumbnail);
       local t2 = thumbnail:CreateFontString(nil, "ARTWORK");
       t2:SetFont(STANDARD_TEXT_FONT, 14, "OUTLINE");
@@ -529,8 +531,8 @@ local function subTypesFor(item, regionType)
       t2:SetPoint("BOTTOMRIGHT", -2, 2);
       return thumbnail;
     end,
-    cd = [[Interface/Icons/INV_Misc_PocketWatch_02]],
-    cd2 = [[Interface/Icons/INV_Misc_PocketWatch_01]],
+    cd = 134377,
+    cd2 = 134376,
   };
   local data = {}
   local dataGlow = {}
@@ -1044,8 +1046,8 @@ local function subTypesFor(item, regionType)
       icon = icon.glow,
       title = L["Always Show"],
       description = L["Always show the aura, highlight it if debuffed."],
-      createTriggers = function(triggers, item)
-        createBuffTrigger(triggers, 1, item, "showAlways", false);
+      createTriggers = function(triggers, item, data)
+        createBuffTrigger(triggers, 1, item, "showAlways", false, data);
       end,
       createConditions = function(conditions, item, regionType)
         isBuffedGlowAuraAlways(conditions, 1, regionType);
@@ -1241,6 +1243,7 @@ function WeakAuras.CreateTemplateView(Private, frame)
 
   local newViewScroll = AceGUI:Create("ScrollFrame");
   newViewScroll:SetLayout("flow");
+  newViewScroll.frame:SetClipsChildren(true);
   newView:AddChild(newViewScroll);
 
   local function createConditionsFor(item, subType, regionType)
@@ -1624,7 +1627,7 @@ function WeakAuras.CreateTemplateView(Private, frame)
     replaceButton:SetFullWidth(true);
     replaceButton:SetClick(function()
       replaceTriggers(newView.data, newView.chosenItem, newView.chosenSubType);
-      for _,v in pairs({"class", "spec", "talent", "pvptalent", "race", "covenant"}) do
+      for _,v in pairs({"class", "spec", "talent", "herotalent", "pvptalent", "race", "covenant"}) do
         newView.data.load[v] = nil;
         newView.data.load["use_"..v] = nil;
       end
@@ -1699,6 +1702,11 @@ function WeakAuras.CreateTemplateView(Private, frame)
       local classSelector = createDropdown("class", WeakAuras.class_types);
       newViewScroll:AddChild(classSelector);
 
+      if WeakAuras.IsRetail() then
+        local specSelector = createDropdown("spec", WeakAuras.spec_types_specific[newView.class]);
+        newViewScroll:AddChild(specSelector);
+        newViewScroll:AddChild(createSpacer());
+      end
       if TemplatePrivate.triggerTemplates.class[newView.class]
          and TemplatePrivate.triggerTemplates.class[newView.class][newView.spec]
       then
@@ -1861,7 +1869,11 @@ function WeakAuras.CreateTemplateView(Private, frame)
       newView.chosenItemBatch = {};
     end
     newView.class = select(2, UnitClass("player"));
-    newView.spec = 1
+    if WeakAuras.IsRetail() then
+      newView.spec = GetSpecialization() or 1;
+    else
+      newView.spec = 1
+    end
     newView.race = select(2, UnitRace('player'));
 
     createButtons();

@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local L = WeakAuras.L;
@@ -7,8 +9,9 @@ local L = WeakAuras.L;
 local function createOptions(parentData, data, index, subIndex)
   local areaAnchors = {}
   for child in OptionsPrivate.Private.TraverseLeafsOrAura(parentData) do
-    WeakAuras.Mixin(areaAnchors, OptionsPrivate.Private.GetAnchorsForData(child, "area"))
+    Mixin(areaAnchors, OptionsPrivate.Private.GetAnchorsForData(child, "area"))
   end
+
   local options = {
     __title = L["Border %s"]:format(subIndex),
     __order = 1,
@@ -56,6 +59,7 @@ local function createOptions(parentData, data, index, subIndex)
     anchor_area = {
       type = "select",
       width = WeakAuras.normalWidth,
+      control = "WeakAurasTwoColumnDropdown",
       name = L["Border Anchor"],
       order = 7,
       values = areaAnchors,

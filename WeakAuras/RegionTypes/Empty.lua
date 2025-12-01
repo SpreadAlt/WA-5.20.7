@@ -1,6 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
-
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
 local L = WeakAuras.L
@@ -29,7 +30,7 @@ local function create(parent)
   region.regionType = "empty"
   region:SetMovable(true)
   region:SetResizable(true)
-  region:SetMinResize(1, 1)
+  region:SetResizeBounds(1, 1)
 
   region.Update = function()
     region:UpdateProgress()

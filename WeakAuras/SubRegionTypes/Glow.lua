@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
 local LCG = LibStub("LibCustomGlow-1.0")
@@ -190,13 +192,22 @@ local funcs = {
     local color
     self.glow = visible
 
+    if not self:IsRectValid() then
+      -- This ensures that WoW tries to make the rect valid
+      -- which helps the glow lib to apply the glow in the right size
+      -- See Ticket: #2818
+      self:GetWidth()
+    end
+
     if self.useGlowColor then
       color = self.glowColor
     end
 
     if MSQ and self.parentType == "icon" then
       if (visible) then
-        self.__MSQ_Shape = self:GetParent().button.__MSQ_Shape
+        local button = self:GetParent().button
+        local mcfg = button._MSQ_CFG
+        self.__MSQ_Shape = (mcfg and mcfg.Shape) or button.__MSQ_Shape
         self:Show()
         glowStart(self, self, color)
       else

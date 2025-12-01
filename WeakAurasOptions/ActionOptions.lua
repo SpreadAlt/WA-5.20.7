@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local L = WeakAuras.L
@@ -18,6 +20,7 @@ local RestrictedChannelCheck = function(data)
   return data.message_type == "SAY" or data.message_type == "YELL" or data.message_type == "SMARTRAID"
 end
 
+--- @type number? the time at which the last sound was played, so that we don't play
 ---  a sound from each setter
 local lastPlayedSoundFromSet
 
@@ -214,22 +217,19 @@ function OptionsPrivate.GetActionOptions(data)
         name = "",
         order = 3.19,
         image = function() return "", 0, 0 end,
-        hidden = function() return WeakAuras.IsAwesomeEnabled() ~= 2 or data.actions.start.message_type ~= "TTS" end,
+        hidden = function() return data.actions.start.message_type ~= "TTS" end,
       },
       start_message_tts_settings = {
         type = "execute",
         width = WeakAuras.normalWidth,
         func = function()
-          if AwesomeCVar and AwesomeCVar.ToggleFrame then
-            AwesomeCVar:ToggleFrame("Text to Speech")
-          end
+          ShowUIPanel(ChatConfigFrame)
+          ChatConfigFrameChatTabManager:UpdateSelection(VOICE_WINDOW_ID)
         end,
-        desc = IsAddOnLoaded("AwesomeCVar") and L["Open the Voice Chat settings to configure the TTS."]
-                or L["Install AwesomeCVar to open the Voice Chat settings."],
         name = L["Voice Settings"],
         order = 3.2,
-        disabled = function() return WeakAuras.IsAwesomeEnabled() ~= 2 or not data.actions.start.do_message end,
-        hidden = function() return WeakAuras.IsAwesomeEnabled() ~= 2 or data.actions.start.message_type ~= "TTS" end,
+        disabled = function() return not data.actions.start.do_message end,
+        hidden = function() return data.actions.start.message_type ~= "TTS" end,
       },
       start_message = {
         type = "input",
@@ -742,22 +742,19 @@ function OptionsPrivate.GetActionOptions(data)
         name = "",
         order = 23.19,
         image = function() return "", 0, 0 end,
-        hidden = function() return WeakAuras.IsAwesomeEnabled() ~= 2 or data.actions.finish.message_type ~= "TTS" end,
+        hidden = function() return data.actions.finish.message_type ~= "TTS" end,
       },
       finish_message_tts_settings = {
         type = "execute",
         width = WeakAuras.normalWidth,
         func = function()
-          if AwesomeCVar and AwesomeCVar.ToggleFrame then
-            AwesomeCVar:ToggleFrame("Text to Speech")
-          end
+          ShowUIPanel(ChatConfigFrame)
+          ChatConfigFrameChatTabManager:UpdateSelection(VOICE_WINDOW_ID)
         end,
-        desc = IsAddOnLoaded("AwesomeCVar") and L["Open the Voice Chat settings to configure the TTS."]
-                or L["Install AwesomeCVar to open the Voice Chat settings."],
         name = L["Voice Settings"],
         order = 23.2,
-        disabled = function() return WeakAuras.IsAwesomeEnabled() ~= 2 or not data.actions.finish.do_message end,
-        hidden = function() return WeakAuras.IsAwesomeEnabled() ~= 2 or data.actions.finish.message_type ~= "TTS" end,
+        disabled = function() return not data.actions.finish.do_message end,
+        hidden = function() return data.actions.finish.message_type ~= "TTS" end,
       },
       finish_message = {
         type = "input",
@@ -845,16 +842,13 @@ function OptionsPrivate.GetActionOptions(data)
         width = WeakAuras.doubleWidth,
         name = L["Stop Sound"],
         order = 29.1,
-        hidden = function() return not StopSound end,
-        disabled = function() return not StopSound end,
       },
       finish_do_sound_fade = {
         type = "toggle",
         width = WeakAuras.normalWidth,
         name = L["Fadeout Sound"],
         order = 29.2,
-        hidden = function() return not StopSound end,
-        disabled = function() return not StopSound or not data.actions.finish.stop_sound end,
+        disabled = function() return not data.actions.finish.stop_sound end,
       },
       finish_stop_sound_fade = {
         type = "range",
@@ -862,8 +856,8 @@ function OptionsPrivate.GetActionOptions(data)
         width = WeakAuras.normalWidth,
         name = L["Fadeout Time (seconds)"],
         order = 29.3,
-        hidden = function() return not StopSound or not data.actions.finish.do_sound_fade end,
-        disabled = function() return not StopSound or not data.actions.finish.stop_sound end,
+        hidden = function() return not data.actions.finish.do_sound_fade end,
+        disabled = function() return not data.actions.finish.stop_sound end,
         min = 0,
         softMax = 10,
         bigStep = 1,
@@ -873,8 +867,6 @@ function OptionsPrivate.GetActionOptions(data)
         width = WeakAuras.doubleWidth,
         order = 29.4,
         name = "",
-        hidden = function() return not StopSound end,
-        disabled = function() return not StopSound end,
       },
       finish_do_glow = {
         type = "toggle",

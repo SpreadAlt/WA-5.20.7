@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local L = WeakAuras.L
@@ -170,16 +172,11 @@ local function createOptions(id, data)
       width = WeakAuras.normalWidth,
       name = L["Group by Frame"],
       order = 1.6,
-      values = function()
-        local v = {
-          ["UNITFRAME"] = L["Unit Frames"],
-          ["CUSTOM"] = L["Custom Frames"]
-        }
-        if WeakAuras.IsAwesomeEnabled() then
-          v["NAMEPLATE"] = L["Nameplates"]
-        end
-        return v
-      end,
+      values = {
+        ["UNITFRAME"] = L["Unit Frames"],
+        ["NAMEPLATE"] = L["Nameplates"],
+        ["CUSTOM"] = L["Custom Frames"],
+      },
       hidden = function() return data.grow == "CUSTOM" end,
       disabled = function() return not data.useAnchorPerUnit end
     },
@@ -637,22 +634,22 @@ local function createAnimatedDefaultIcon(parent)
   local t1 = defaultIcon:CreateTexture(nil, "ARTWORK");
   t1:SetWidth(24);
   t1:SetHeight(6);
-  t1:SetTexture(0.8, 0, 0);
+  t1:SetColorTexture(0.8, 0, 0);
   t1:SetPoint("TOP", parent, "TOP", 0, -6);
   local t2 = defaultIcon:CreateTexture(nil, "ARTWORK");
   t2:SetWidth(12);
   t2:SetHeight(12);
-  t2:SetTexture(0.2, 0.8, 0.2);
+  t2:SetColorTexture(0.2, 0.8, 0.2);
   t2:SetPoint("TOP", t1, "BOTTOM", 0, -2);
   local t3 = defaultIcon:CreateTexture(nil, "ARTWORK");
   t3:SetWidth(30);
   t3:SetHeight(4);
-  t3:SetTexture(0.1, 0.25, 1);
+  t3:SetColorTexture(0.1, 0.25, 1);
   t3:SetPoint("TOP", t2, "BOTTOM", 0, -2);
   local t4 = defaultIcon:CreateTexture(nil, "OVERLAY");
   t4:SetWidth(1);
   t4:SetHeight(36);
-  t4:SetTexture(1, 1, 1);
+  t4:SetColorTexture(1, 1, 1);
   t4:SetPoint("CENTER", parent, "CENTER");
 
   defaultIcon.t1 = t1
@@ -674,7 +671,7 @@ local function modifyThumbnail(parent, frame, data)
       icon:SetAllPoints(frame)
       frame.icon = icon
     end
-    local success = OptionsPrivate.Private.SetTextureOrSpellTexture(frame.icon, path or data.groupIcon) and (path or data.groupIcon)
+    local success = OptionsPrivate.Private.SetTextureOrAtlas(frame.icon, path or data.groupIcon) and (path or data.groupIcon)
     if success then
       if frame.defaultIcon then
         frame.defaultIcon:Hide()

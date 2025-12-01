@@ -1,7 +1,8 @@
-## Interface: 30300
+## Interface: 110205
 ## Title: WeakAuras Templates
 ## Author: The WeakAuras Team
-## Version: 5.20.4
+## Version: 5.20.7
+## IconTexture: Interface\AddOns\WeakAuras\Media\Textures\icon.blp
 ## Notes: Templates for WeakAuras
 ## Notes-esES: Plantillas para WeakAuras
 ## Notes-esMX: Plantillas para WeakAuras
@@ -14,6 +15,6 @@
 locales.xml
 
 TriggerTemplates.lua
-TriggerTemplatesDataWrath.lua
+TriggerTemplatesData.lua
 
 AceGUI-Widgets\AceGUIContainer-WeakAurasTemplateGroup.lua

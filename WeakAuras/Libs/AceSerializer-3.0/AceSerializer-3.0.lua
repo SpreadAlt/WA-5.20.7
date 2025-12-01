@@ -26,7 +26,7 @@ local tconcat = table.concat
 -- quick copies of string representations of wonky numbers
 local inf = math.huge
 
-local serNaN =  "-1.#IND"
+local serNaN  -- can't do this in 4.3, see ace3 ticket 268
 local serInf, serInfMac = "1.#INF", "inf"
 local serNegInf, serNegInfMac = "-1.#INF", "-inf"
 
@@ -62,7 +62,7 @@ local function SerializeValue(v, res, nres)
 
 	elseif t=="number" then	-- ^N = number (just tostring()ed) or ^F (float components)
 		local str = tostring(v)
-		if tonumber(str)==v or str==serNaN then
+		if tonumber(str)==v  --[[not in 4.3 or str==serNaN]] then
 			-- translates just fine, transmit as-is
 			res[nres+1] = "^N"
 			res[nres+2] = str
@@ -149,9 +149,9 @@ local function DeserializeStringHelper(escape)
 end
 
 local function DeserializeNumberHelper(number)
-	if number == serNaN then
+	--[[ not in 4.3 if number == serNaN then
 		return 0/0
-	elseif number == serNegInf or number == serNegInfMac then
+	else]]if number == serNegInf or number == serNegInfMac then
 		return -inf
 	elseif number == serInf or number == serInfMac then
 		return inf

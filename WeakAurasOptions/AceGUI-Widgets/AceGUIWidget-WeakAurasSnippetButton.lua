@@ -75,7 +75,7 @@ local methods = {
     self.ntex:SetVertexColor(0.8, 0.8, 0.8, 0.25)
     self.htex:SetTexture("Interface\\BUTTONS\\UI-Listbox-Highlight2.blp")
     self.htex:SetVertexColor(0.3, 0.5, 1, 0.5)
-    self.ptex:SetTexture(1, 1, 1, 0.2)
+    self.ptex:SetColorTexture(1, 1, 1, 0.2)
   end,
   -- ["OnRelease"] = nil,
 
@@ -123,11 +123,9 @@ local methods = {
   end,
   ["SetDynamicTextStyle"] = function(self)
     self.ntex:SetTexture(nil)
-    self.htex:SetTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\Options")
-    self.htex:SetTexCoord(0.774414, 0.957031, 0.000976562, 0.0214844)
+    self.htex:SetAtlas("Options_List_Hover")
     self.htex:SetVertexColor(1, 1, 1, 1)
-    self.ptex:SetTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\Options")
-    self.ptex:SetTexCoord(0.589844, 0.772461, 0.000976562, 0.0214844)
+    self.ptex:SetAtlas("Options_List_Active")
   end
 }
 
@@ -194,8 +192,7 @@ local function Constructor()
   deleteButton:SetPushedTexture(delPushed)
   button.deleteHighlight = delHighlight
 
-  local renameEditBox = CreateFrame("EditBox", nil, button)
-  WeakAuras.XMLTemplates["InputBoxTemplate"](renameEditBox)
+  local renameEditBox = CreateFrame("EditBox", nil, button, "InputBoxTemplate")
   renameEditBox:SetHeight(14)
   renameEditBox:SetPoint("TOPLEFT", title, "TOPLEFT")
   renameEditBox:SetPoint("BOTTOMRIGHT", title, "BOTTOMRIGHT")

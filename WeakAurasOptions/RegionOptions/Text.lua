@@ -1,11 +1,13 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local SharedMedia = LibStub("LibSharedMedia-3.0");
 local L = WeakAuras.L;
 
-local screenWidth = math.ceil(GetScreenWidth() / 20) * 20
+local screenWidth = math.ceil(GetScreenWidth() / 20) * 20;
 
 local indentWidth = 0.15
 local hiddenFontExtra = function()
@@ -442,10 +444,7 @@ local function modifyThumbnail(parent, borderframe, data, fullModify, size)
   size = size or 28;
 
   local fontPath = SharedMedia:Fetch("font", data.font) or data.font;
-  text:SetFont(fontPath, data.fontSize < 33 and data.fontSize or 33, data.outline and "OUTLINE" or nil);
-  if not text:GetFont() then -- Font invalid, set the font but keep the setting
-    text:SetFont(STANDARD_TEXT_FONT, data.fontSize < 33 and data.fontSize or 33, data.outline and "OUTLINE" or nil);
-  end
+  text:SetFont(fontPath, data.fontSize, data.outline and "OUTLINE" or nil);
   text:SetTextHeight(data.fontSize);
   text:SetText(data.displayText);
   text:SetTextColor(data.color[1], data.color[2], data.color[3], data.color[4]);

@@ -1,4 +1,6 @@
-if not WeakAuras.IsLibsOK() then return end
+if not WeakAuras.IsLibsOK() then
+  return
+end
 
 local widgetType, widgetVersion = "WeakAurasMiniTalent", 3
 local AceGUI = LibStub and LibStub("AceGUI-3.0", true)
@@ -32,6 +34,7 @@ local function CreateTalentButton(parent)
     end
     if self.line1 then
       self.line1:Hide()
+      self.line2:Hide()
     end
   end
   function button:Red()
@@ -42,12 +45,23 @@ local function CreateTalentButton(parent)
       normalTexture:SetVertexColor(1, 0, 0, 1)
     end
     if not self.line1 then
-      local line1 = button:CreateTexture(nil, "OVERLAY")
-      line1:SetTexture("Interface\\AddOns\\WeakAuras\\Media\\Textures\\talentcross")
-      line1:SetAllPoints(button)
+      local line1 = button:CreateLine()
+      line1:SetColorTexture(1, 0, 0, 1)
+      line1:SetStartPoint("TOPLEFT", 3, -3)
+      line1:SetEndPoint("BOTTOMRIGHT", -3, 3)
+      line1:SetBlendMode("ADD")
+      line1:SetThickness(2)
+      local line2 = button:CreateLine()
+      line2:SetColorTexture(1, 0, 0, 1)
+      line2:SetStartPoint("TOPRIGHT", -3, -3)
+      line2:SetEndPoint("BOTTOMLEFT", 3, 3)
+      line2:SetBlendMode("ADD")
+      line2:SetThickness(2)
       self.line1 = line1
+      self.line2 = line2
     end
     self.line1:Show()
+    self.line2:Show()
   end
   function button:Clear()
     self.cover:Hide()
@@ -57,6 +71,7 @@ local function CreateTalentButton(parent)
     end
     if self.line1 then
       self.line1:Hide()
+      self.line2:Hide()
     end
   end
   function button:UpdateTexture()
@@ -84,7 +99,7 @@ local function CreateTalentButton(parent)
   end)
   button:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetTalent(self.tab, self.index - (self.tab - 1) * MAX_NUM_TALENTS)
+    GameTooltip:SetTalent(self.tab, self.index - (self.tab - 1) * MAX_NUM_TALENTS, false, false, false, false)
   end)
   button:Clear()
   return button
@@ -93,8 +108,7 @@ end
 local function Button_ShowToolTip(self)
   if self.spellId then
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    --DEPRECATED GameTooltip:SetSpellByID(self.spellId)
-    GameTooltip:SetHyperlink("spell:"..(self.spellId or 0))
+    GameTooltip:SetSpellByID(self.spellId)
   end
 end
 local function Button_HideToolTip(self)
@@ -123,9 +137,11 @@ local function TalentFrame_Update(self)
         button:ClearAllPoints()
         button:SetScript("OnEnter", Button_ShowToolTip)
         button:SetScript("OnLeave", Button_HideToolTip)
+        button:SetMotionScriptsWhileDisabled(true)
         if self.open then
           button:SetPoint("TOPLEFT", button.obj, "TOPLEFT", buttonSizePadded * (column - 1) + (button.tab - 1) * buttonSizePadded * 4 + 5, -buttonSizePadded * (tier - 1) - 5)
-          button:Enable()
+          button:SetEnabled(true)
+          button:SetMouseClickEnabled(true)
           button:Show()
         else
           if button.state ~= nil then
@@ -137,7 +153,8 @@ local function TalentFrame_Update(self)
               7 + ((buttonShownCount - 1) % 11) * (buttonSizePadded + 4),
               -7 + -1 * (ceil(buttonShownCount / 11) - 1) * (buttonSizePadded + 4)
             )
-            button:Disable()
+            button:SetEnabled(false)
+            button:SetMouseClickEnabled(false)
             button:Show()
           else
             button:Hide()
@@ -246,8 +263,8 @@ local function Constructor()
   local backgrounds = {}
   for tab = 1, GetNumTalentTabs() do
     local background = talentFrame:CreateTexture(nil, "BACKGROUND")
-    background:SetPoint("TOPLEFT", talentFrame, "TOPLEFT", (tab - 1) * buttonSizePadded * 3.17, 0)
-    background:SetPoint("BOTTOMRIGHT", talentFrame, "BOTTOMLEFT", tab * buttonSizePadded * 3.17, 0)
+    background:SetPoint("TOPLEFT", talentFrame, "TOPLEFT", (tab - 1) * buttonSizePadded * 4, 0)
+    background:SetPoint("BOTTOMRIGHT", talentFrame, "BOTTOMLEFT", tab * buttonSizePadded * 4, 0)
     background:SetTexCoord(0, 1, 0, 1)
     background:Show()
     table.insert(backgrounds, background)
@@ -261,6 +278,9 @@ local function Constructor()
   for _, button in ipairs(buttons) do
     button:SetScale(scale)
   end
+  for _, background in ipairs(backgrounds) do
+    background:SetScale(scale)
+  end
   talentFrame:SetSize(finalWidth, finalHeight)
   talentFrame:SetScript("OnClick", function(self)
     self.obj:ToggleView()
@@ -270,8 +290,9 @@ local function Constructor()
   toggle:SetText(L["Select Talent"])
   toggle:SetTexture("interface/buttons/ui-microbutton-talents-up")
   toggle.icon:ClearAllPoints()
-  toggle.icon:SetPoint("LEFT", toggle.frame, "LEFT", -3, 5.5)
-  toggle.icon:SetSize(25, 36)
+  toggle.icon:SetPoint("LEFT", toggle.frame, "LEFT", 0, 10)
+  toggle.icon:SetSize(28, 58)
+  toggle.icon:SetScale(0.6)
   toggle.frame:SetPoint("BOTTOMRIGHT", talentFrame, "TOPRIGHT", 0, 2)
   toggle.frame:SetParent(talentFrame)
   toggle.frame.obj.text:SetVertexColor(1, 1, 1, 1)

@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local L = WeakAuras.L
@@ -252,6 +254,7 @@ local function moveTriggerDownConditionCheck(check, i)
   end
 end
 
+--- @type fun(data: auraData, i: number) : boolean
 local function moveTriggerDownImpl(data, i)
   if (i < 1 or i >= #data.triggers) then
     return false;
@@ -261,7 +264,7 @@ local function moveTriggerDownImpl(data, i)
     moveTriggerDownConditionCheck(condition.check, i);
   end
 
- local function fixUpProgressSource(data)
+  local function fixUpProgressSource(data)
     if data.progressSource then
       local trigger, property = unpack(data.progressSource)
       if trigger == i then
@@ -399,18 +402,16 @@ function OptionsPrivate.AddTriggerMetaFunctions(options, data, triggernum)
           OnCancel = function()
             triggerDeleteDialogOpen = false
           end,
-          showAlert = 1,
-          whileDead = 1,
-          timeout = 0,
-          preferredindex = STATICPOPUP_NUMDIALOGS,
+          showAlert = true,
+          whileDead = true,
+          preferredindex = 4,
         }
         triggerDeleteDialogOpen = true
         StaticPopup_Show("WEAKAURAS_CONFIRM_TRIGGER_DELETE")
       end
     end
   }
-  local _, _, _, enabled = GetAddOnInfo("WeakAurasTemplates")
-  if enabled then
+  if (C_AddOns.GetAddOnEnableState("WeakAurasTemplates") ~= Enum.AddOnEnableState.None) then
     options.__applyTemplate = function()
       -- If we have more than a single aura selected,
       -- we want to open the template view with the group/multi selection

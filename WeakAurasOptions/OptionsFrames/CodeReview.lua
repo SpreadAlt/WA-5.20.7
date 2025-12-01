@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 -- Lua APIs
@@ -12,6 +14,7 @@ local AceGUI = LibStub("AceGUI-3.0")
 local SharedMedia = LibStub("LibSharedMedia-3.0")
 local IndentationLib = IndentationLib
 
+---@class WeakAuras
 local WeakAuras = WeakAuras
 local L = WeakAuras.L
 
@@ -85,7 +88,7 @@ local function ConstructCodeReview(frame)
   IndentationLib.enable(codebox.editBox, colorScheme, 4);
   local fontPath = SharedMedia:Fetch("font", "Fira Mono Medium");
   if(fontPath) then
-    codebox.editBox:SetFont(fontPath, 12);
+    codebox.editBox:SetFont(fontPath, 12, "");
   end
   group.codebox = codebox;
 

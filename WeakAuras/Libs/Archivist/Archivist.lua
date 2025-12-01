@@ -24,7 +24,7 @@ do -- boilerplate & static values
 	Archivist.storeMap = {}
 	Archivist.activeStores = {}
 	namespace.Archivist = Archivist
-	local unloader = CreateFrame("Frame")
+	local unloader = CreateFrame("FRAME")
 	unloader:RegisterEvent("PLAYER_LOGOUT")
 	unloader:SetScript("OnEvent", function()
 		Archivist:DeInitialize()
@@ -33,7 +33,7 @@ do -- boilerplate & static values
 		-- Archivist is installed as a standalone addon.
 		-- The Archive is in the default location, ACHV_DB
 		_G.Archivist = Archivist
-		local loader = CreateFrame("Frame")
+		local loader = CreateFrame("frame")
 		loader:RegisterEvent("ADDON_LOADED")
 		loader:SetScript("OnEvent", function(self, _, addon)
 			if addon == addonName then

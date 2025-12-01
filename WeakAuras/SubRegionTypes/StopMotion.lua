@@ -1,6 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
-
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
 local L = WeakAuras.L
@@ -38,7 +39,7 @@ local default = function(parentType)
     progressSource = {-2, ""},
   }
 
-  if IsAddOnLoaded("WeakAurasStopMotion") then
+  if C_AddOns.IsAddOnLoaded("WeakAurasStopMotion") then
     defaults.stopmotionTexture = "Interface\\AddOns\\WeakAurasStopMotion\\Textures\\IconOverlays\\ArcReactor"
     defaults.frameRate = 30
     defaults.scale = 3
@@ -162,7 +163,7 @@ local ProgressFuncs = {
 
 local function create()
   local region = CreateFrame("Frame", nil, UIParent)
-  --region:SetFlattensRenderLayers(true)
+  region:SetFlattensRenderLayers(true)
 
   for k, v in pairs(funcs) do
     region[k] = v
@@ -194,12 +195,14 @@ local function modify(parent, region, parentData, data, first)
     and data.barModelClip
   then
     -- Special anchoring for clipping !
+    region:SetClipsChildren(true)
     region:SetScript("OnSizeChanged", nil)
     region:ClearAllPoints()
     region:SetAllPoints(parent.bar.fgMask)
     region.stopMotion:ClearAllPoints()
     region.stopMotion:SetAllPoints(region.parent.bar)
   else
+    region:SetClipsChildren(false)
     local arg1 = data.anchor_mode == "point" and data.anchor_point or data.anchor_area
     local arg2 = data.anchor_mode == "point" and data.self_point or nil
 

@@ -1,5 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local tinsert, tremove = table.insert, table.remove
@@ -9,6 +11,7 @@ local error = error
 local Type, Version = "WeakAurasDisplayButton", 60
 local AceGUI = LibStub and LibStub("AceGUI-3.0", true)
 if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then return end
+local LibDD = LibStub:GetLibrary("LibUIDropDownMenu-4.0")
 
 local L = WeakAuras.L;
 local fullName;
@@ -110,7 +113,7 @@ clipboard.copyEverythingEntry = {
   text = L["Everything"],
   notCheckable = true,
   func = function()
-    WeakAuras_DropDownMenu:Hide();
+    LibDD:CloseDropDownMenus()
     CopyToClipboard("all", L["Paste Settings"])
   end
 };
@@ -119,7 +122,7 @@ clipboard.copyGroupEntry = {
   text = L["Group"],
   notCheckable = true,
   func = function()
-    WeakAuras_DropDownMenu:Hide();
+    LibDD:CloseDropDownMenus()
     CopyToClipboard("display", L["Paste Group Settings"])
   end
 };
@@ -128,7 +131,7 @@ clipboard.copyDisplayEntry = {
   text = L["Display"],
   notCheckable = true,
   func = function()
-    WeakAuras_DropDownMenu:Hide();
+    LibDD:CloseDropDownMenus()
     CopyToClipboard("display", L["Paste Display Settings"])
   end
 };
@@ -137,7 +140,7 @@ clipboard.copyTriggerEntry = {
   text = L["Trigger"],
   notCheckable = true,
   func = function()
-    WeakAuras_DropDownMenu:Hide();
+    LibDD:CloseDropDownMenus()
     CopyToClipboard("trigger", L["Paste Trigger Settings"])
   end
 };
@@ -146,7 +149,7 @@ clipboard.copyConditionsEntry = {
   text = L["Conditions"],
   notCheckable = true,
   func = function()
-    WeakAuras_DropDownMenu:Hide();
+    LibDD:CloseDropDownMenus()
     CopyToClipboard("condition", L["Paste Condition Settings"])
   end
 };
@@ -155,7 +158,7 @@ clipboard.copyLoadEntry = {
   text = L["Load"],
   notCheckable = true,
   func = function()
-    WeakAuras_DropDownMenu:Hide();
+    LibDD:CloseDropDownMenus()
     CopyToClipboard("load", L["Paste Load Settings"])
   end
 };
@@ -164,7 +167,7 @@ clipboard.copyActionsEntry = {
   text = L["Actions"],
   notCheckable = true,
   func = function()
-    WeakAuras_DropDownMenu:Hide();
+    LibDD:CloseDropDownMenus()
     CopyToClipboard("action", L["Paste Action Settings"])
   end
 };
@@ -173,7 +176,7 @@ clipboard.copyAnimationsEntry = {
   text = L["Animations"],
   notCheckable = true,
   func = function()
-    WeakAuras_DropDownMenu:Hide();
+    LibDD:CloseDropDownMenus()
     CopyToClipboard("animation", L["Paste Animations Settings"])
   end
 };
@@ -182,7 +185,7 @@ clipboard.copyAuthorOptionsEntry = {
   text = L["Author Options"],
   notCheckable = true,
   func = function()
-    WeakAuras_DropDownMenu:Hide();
+    LibDD:CloseDropDownMenus()
     CopyToClipboard("authorOptions", L["Paste Author Options Settings"])
   end
 };
@@ -191,7 +194,7 @@ clipboard.copyUserConfigEntry = {
   text = L["Custom Configuration"],
   notCheckable = true,
   func = function()
-    WeakAuras_DropDownMenu:Hide();
+    LibDD:CloseDropDownMenus()
     CopyToClipboard("config", L["Paste Custom Configuration"])
   end
 };
@@ -420,6 +423,28 @@ local function Show_DropIndicator(id)
   end
 end
 
+-- WORKAROUND
+-- Blizzard in its infinite wisdom did:
+-- * Force enable the profanity filter for the chinese region
+-- * Add a realm name's part to the profanity filter
+local function ObfuscateName(name)
+  if (GetCurrentRegion() == 5) then
+    local result = ""
+    for i = 1, #name do
+      local b = name:byte(i)
+      if (b >= 196 and i ~= 1) then
+        -- UTF8 Start byte
+        result = result .. string.char(46, b)
+      else
+        result = result .. string.char(b)
+      end
+    end
+    return result
+  else
+    return name
+  end
+end
+
 local function IsParentRecursive(needle, parent)
   if needle.id == parent.id then
     return true
@@ -464,18 +489,24 @@ local methods = {
         local editbox = GetCurrentKeyBoardFocus();
         if(editbox) then
           if (not fullName) then
-            local name, realm = UnitName("player")
+            local name, realm = UnitFullName("player")
             if realm then
-              fullName = name.."-"..realm
+              fullName = name.."-".. ObfuscateName(realm)
             else
               fullName = name
             end
           end
-          local url = ""
-          if self.data.url then
-            url = " ".. self.data.url
+
+          if not (GetCurrentRegion() == 5 or GetLocale() == "zhCN") then -- China region (5), and chinese locale profanity filter doesn't allow links in chat
+            local url = ""
+            if self.data.url then
+              url = " ".. self.data.url
+            end
+            editbox:Insert("[WeakAuras: "..fullName.." - "..self.data.id.."]"..url)
+          else
+            editbox:Insert("[WeakAuras: "..fullName.." - "..self.data.id.."]")
           end
-          editbox:Insert("[WeakAuras: "..fullName.." - "..self.data.id.."]"..url)
+
           OptionsPrivate.Private.linked = OptionsPrivate.Private.linked or {}
           OptionsPrivate.Private.linked[self.data.id] = GetTime()
         elseif not self.data.controlledChildren then
@@ -486,10 +517,10 @@ local methods = {
         if(mouseButton == "RightButton") then
           Hide_Tooltip();
           if(OptionsPrivate.IsDisplayPicked(self.data.id) and OptionsPrivate.IsPickedMultiple()) then
-            EasyMenu(OptionsPrivate.MultipleDisplayTooltipMenu(), WeakAuras_DropDownMenu, self.frame, 0, 0, "MENU");
+            LibDD:EasyMenu(OptionsPrivate.MultipleDisplayTooltipMenu(), WeakAuras_DropDownMenu, self.frame, 0, 0, "MENU");
           else
             UpdateClipboardMenuEntry(self.data);
-            EasyMenu(self.menu, WeakAuras_DropDownMenu, self.frame, 0, 0, "MENU");
+            LibDD:EasyMenu(self.menu, WeakAuras_DropDownMenu, self.frame, 0, 0, "MENU");
             if not(OptionsPrivate.IsDisplayPicked(self.data.id)) then
               if self.data.controlledChildren then
                 WeakAuras.PickDisplay(self.data.id, "group")
@@ -852,7 +883,7 @@ local methods = {
             notCheckable = true,
             func = function()
               OptionsPrivate.ConvertDisplay(self.data, regionType);
-              WeakAuras_DropDownMenu:Hide();
+              LibDD:CloseDropDownMenus()
             end
           });
         end
@@ -910,7 +941,7 @@ local methods = {
     tinsert(self.menu, {
       text = L["Close"],
       notCheckable = true,
-      func = function() WeakAuras_DropDownMenu:Hide() end
+      func = function() LibDD:CloseDropDownMenus() end
     });
     if(self.data.controlledChildren) then
       self.expand:Show();
@@ -1142,12 +1173,12 @@ local methods = {
       -- mark as being dragged, attach to mouse and raise frame strata
       self.dragging = true
       self.frame:StartMoving()
-      --self.frame:ClearAllPoints()
+      self.frame:ClearAllPoints()
       self.frame.temp = {
         parent = self.frame:GetParent(),
         strata = self.frame:GetFrameStrata(),
       }
-      --self.frame:SetParent(UIParent)
+      self.frame:SetParent(UIParent)
       self.frame:SetFrameStrata("FULLSCREEN_DIALOG")
       if self.data.id == mainAura.id then
         self.frame:SetPoint("Center", UIParent, "BOTTOMLEFT", (x+w/2)*scale/uiscale, y/uiscale)
@@ -1384,7 +1415,11 @@ local methods = {
       iconButton:SetSize(16, 16)
     end
     iconButton.prio = prio
-    iconButton:SetNormalTexture(icon)
+    if C_Texture.GetAtlasInfo(icon) then
+      iconButton:SetNormalAtlas(icon)
+    else
+      iconButton:SetNormalTexture(icon)
+    end
     if title then
       iconButton:SetScript("OnEnter", function()
         Show_Tooltip(
@@ -1442,21 +1477,14 @@ local methods = {
             removeText = L["Remove All Text To Speech"]
           end
           onClick = function()
-            local menu = {
-              {
-                text = soundText,
-                func = function()
-                  WeakAuras.PickDisplay(warning.auraId, tabsForWarning[warning.key] or "information")
-                end
-              },
-              {
-                text = removeText,
-                func = function()
-                  OptionsPrivate.Private.ClearSounds(self.data.uid, severity)
-                end
-              }
-            }
-            EasyMenu(menu, WeakAuras_DropDownMenu, "cursor", 0, 0, "MENU");
+            MenuUtil.CreateContextMenu(UIParent, function(ownerRegion, root)
+              root:CreateButton(soundText, function()
+                WeakAuras.PickDisplay(warning.auraId, tabsForWarning[warning.key] or "information")
+              end)
+              root:CreateButton(removeText, function()
+                OptionsPrivate.Private.ClearSounds(self.data.uid, severity)
+              end)
+            end)
           end
         else
           onClick = function()
@@ -1540,6 +1568,9 @@ local methods = {
     if self.view.visibility >= 1 then
       if not OptionsPrivate.Private.IsGroupType(self.data) then
         OptionsPrivate.Private.FakeStatesFor(self.data.id, true)
+      end
+      if (OptionsPrivate.Private.personalRessourceDisplayFrame) then
+        OptionsPrivate.Private.personalRessourceDisplayFrame:expand(self.data.id);
       end
       if (OptionsPrivate.Private.mouseFrame) then
         OptionsPrivate.Private.mouseFrame:expand(self.data.id);
@@ -1767,6 +1798,7 @@ Constructor
 
 local function Constructor()
   local name = "WeakAurasDisplayButton"..AceGUI:GetNextWidgetNum(Type);
+  ---@class Button
   local button = CreateFrame("Button", name, UIParent, "OptionsListButtonTemplate");
   button:SetHeight(32);
   button:SetWidth(1000);
@@ -1806,6 +1838,7 @@ local function Constructor()
 
   button.description = {};
 
+  ---@class Button
   local view = CreateFrame("Button", nil, button);
   button.view = view;
   view:SetWidth(16);
@@ -1823,13 +1856,12 @@ local function Constructor()
 
   view.visibility = 0;
 
-  local renamebox = CreateFrame("EditBox", nil, button);
-  WeakAuras.XMLTemplates["InputBoxTemplate"](renamebox)
+  local renamebox = CreateFrame("EditBox", nil, button, "InputBoxTemplate");
   renamebox:SetHeight(14);
   renamebox:SetPoint("TOP", button, "TOP");
   renamebox:SetPoint("LEFT", icon, "RIGHT", 6, 0);
   renamebox:SetPoint("RIGHT", button, "RIGHT", -4, 0);
-  renamebox:SetFont(STANDARD_TEXT_FONT, 10);
+  renamebox:SetFont(STANDARD_TEXT_FONT, 10, "");
   renamebox:Hide();
 
   renamebox.func = function() --[[By default, do nothing!]] end;
@@ -1916,6 +1948,7 @@ local function Constructor()
   downgroup:SetScript("OnLeave", Hide_Tooltip);
   downgroup:Hide();
 
+  ---@class Button
   local expand = CreateFrame("Button", nil, button);
   button.expand = expand;
   expand.expanded = true;

@@ -1,16 +1,51 @@
-# [2.17.4](https://github.com/WeakAuras/WeakAuras2/tree/2.17.4) (2020-04-22)
+# [5.20.7](https://github.com/WeakAuras/WeakAuras2/tree/5.20.7) (2025-11-27)
 
-[Full Changelog](https://github.com/WeakAuras/WeakAuras2/compare/2.17.3...2.17.4)
+[Full Changelog](https://github.com/WeakAuras/WeakAuras2/compare/5.20.6...5.20.7)
 
 ## Highlights
 
- - fix a buff tracking and nameplates regression 
+- Basic support for Wrath Titan (thanks WoW CN community)
+- Support for new Masque version
+- Various bug fixes
 
 ## Commits
 
-InfusOnWoW (3):
+Copilot (1):
 
-- BT2 Fix Multi by adjusting it to recent changes (#2139)
-- Clean up match data if a unit ceases to exists
-- Fix nameplates auras sometimes not being applied if in a raid group
+- Fix allstates:Get to return false instead of nil
+
+InfusOnWoW (6):
+
+- Masque Support: Support new masque version
+- Profiling: Add an inherit font
+- BT Multi Target mode: add warnings on it, and if it's missing a filter
+- Update Discord List
+- Fix regression in Abbreviate numbers on retail
+- Update Discord List
+
+NoM0Re (6):
+
+- Titan: Replace encounter data with phase 1 raids & bosses
+- Titan: remove neutral faction group
+- Titan: fix repair dialog text assignment
+- Glyph Load: Only show in Mists of Pandaria
+- Remove atlas file from Wrath Titan Reforge
+- Add Wrath Titan Reforged support
+
+Stanzilla (4):
+
+- Update WeakAurasModelPaths from wago.tools
+- Update WeakAurasModelPaths from wago.tools
+- Update WeakAurasModelPaths from wago.tools
+- Update WeakAurasModelPaths from wago.tools
+
+dependabot[bot] (2):
+
+- Bump actions/checkout from 5 to 6
+- Bump actions/upload-artifact from 4 to 5
+
+mrbuds (2):
+
+- Remove atlas files
+- Model's Icon set to sword guy on classic, fixes #6075
 

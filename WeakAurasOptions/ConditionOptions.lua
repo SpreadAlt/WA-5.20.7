@@ -45,9 +45,12 @@
 ---  - action: The action function, called on activating a condition
 --   - type: The type
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
+---@class WeakAuras
 local WeakAuras = WeakAuras;
 local L = WeakAuras.L;
 
@@ -222,6 +225,7 @@ local function filterUsedProperties(indexToProperty, allDisplays, usedProperties
   return filtered;
 end
 
+--- @type number? the time at which the last sound was played, so that we don't play
 ---  a sound from each setter
 local lastPlayedSoundFromSet
 local function wrapWithPlaySound(func, kit)
@@ -624,7 +628,8 @@ local function addControlsForChange(args, order, data, conditionVariable, totalA
     if propertyType == "textureLSM" then
       dialogControl = "WA_LSM30_StatusbarAtlas"
       local statusbarList = {}
-      WeakAuras.Mixin(statusbarList, SharedMedia:HashTable("statusbar"))
+      Mixin(statusbarList, SharedMedia:HashTable("statusbar"))
+      Mixin(statusbarList, SharedMedia:HashTable("statusbar_atlas"))
       values = statusbarList
     end
 
@@ -846,35 +851,34 @@ local function addControlsForChange(args, order, data, conditionVariable, totalA
     }
     order = order + 1;
 
-    if StopSound then
-      args["condition" .. i .. "value" .. j .. "sound_fade"] = {
-        type = "range",
-        control = "WeakAurasSpinBox",
-        width = WeakAuras.normalWidth,
-        min = 0,
-        softMax = 10,
-        bigStep = 1,
-        name = blueIfNoValue2(data, conditions[i].changes[j], "value", "sound_fade", L["Fadeout Time (seconds)"], L["Fadeout Time (seconds)"]),
-        desc = descIfNoValue2(data, conditions[i].changes[j], "value", "sound_fade", propertyType),
-        order = order,
-        get = function()
-          return type(conditions[i].changes[j].value) == "table" and conditions[i].changes[j].value.sound_fade;
-        end,
-        set = setValueComplex("sound_fade"),
-        disabled = function() return not anySoundType("Stop") end,
-        hidden = function() return not (anySoundType("Stop")) end
-      }
-      order = order + 1;
+    args["condition" .. i .. "value" .. j .. "sound_fade"] = {
+      type = "range",
+      control = "WeakAurasSpinBox",
+      width = WeakAuras.normalWidth,
+      min = 0,
+      softMax = 10,
+      bigStep = 1,
+      name = blueIfNoValue2(data, conditions[i].changes[j], "value", "sound_fade", L["Fadeout Time (seconds)"], L["Fadeout Time (seconds)"]),
+      desc = descIfNoValue2(data, conditions[i].changes[j], "value", "sound_fade", propertyType),
+      order = order,
+      get = function()
+        return type(conditions[i].changes[j].value) == "table" and conditions[i].changes[j].value.sound_fade;
+      end,
+      set = setValueComplex("sound_fade"),
+      disabled = function() return not anySoundType("Stop") end,
+      hidden = function() return not (anySoundType("Stop")) end
+    }
+    order = order + 1;
 
-      args["condition" .. i .. "value" .. j .. "sound_fade_space"] = {
-        type = "description",
-        width = WeakAuras.normalWidth,
-        name = "",
-        order = order,
-        hidden = function() return not (anySoundType("Stop")) end
-      }
-      order = order + 1;
-    end
+    args["condition" .. i .. "value" .. j .. "sound_fade_space"] = {
+      type = "description",
+      width = WeakAuras.normalWidth,
+      name = "",
+      order = order,
+      hidden = function() return not (anySoundType("Stop")) end
+    }
+    order = order + 1;
+
 
   elseif (propertyType == "chat") then
     args["condition" .. i .. "value" .. j .. "message type"] = {
@@ -907,16 +911,18 @@ local function addControlsForChange(args, order, data, conditionVariable, totalA
       return false;
     end
 
-    args["condition" .. i .. "value" .. j .. "message type warning"] = {
-      type = "description",
-      width = WeakAuras.doubleWidth,
-      name = L["Note: Automated Messages to SAY and YELL are blocked outside of Instances."],
-      order = order,
-      hidden = function()
-        return not (anyMessageType("SAY") or anyMessageType("YELL") or anyMessageType("SMARTRAID"));
-      end
-    }
-    order = order + 1;
+    if WeakAuras.IsRetail() then
+      args["condition" .. i .. "value" .. j .. "message type warning"] = {
+        type = "description",
+        width = WeakAuras.doubleWidth,
+        name = L["Note: Automated Messages to SAY and YELL are blocked outside of Instances."],
+        order = order,
+        hidden = function()
+          return not (anyMessageType("SAY") or anyMessageType("YELL") or anyMessageType("SMARTRAID"));
+        end
+      }
+      order = order + 1;
+    end
 
     args["condition" .. i .. "value" .. j .. "_indent"] = {
       type = "description",
@@ -1016,26 +1022,20 @@ local function addControlsForChange(args, order, data, conditionVariable, totalA
     }
     order = order + 1;
 
-    if WeakAuras.IsAwesomeEnabled() == 2 then
-      args["condition" .. i .. "value" .. j .. "message voice"] = {
-        type = "execute",
-        name = L["Voice Settings"],
-        order = order,
-        width = WeakAuras.normalWidth,
-        func = function()
-          if AwesomeCVar and AwesomeCVar.ToggleFrame then
-            AwesomeCVar:ToggleFrame("Text to Speech")
-          end
+    args["condition" .. i .. "value" .. j .. "message voice"] = {
+      type = "execute",
+      name = L["Voice Settings"],
+      order = order,
+      width = WeakAuras.normalWidth,
+      func = function()
+        ShowUIPanel(ChatConfigFrame)
+        ChatConfigFrameChatTabManager:UpdateSelection(VOICE_WINDOW_ID)
         end,
-        desc = IsAddOnLoaded("AwesomeCVar") and L["Open the Voice Chat settings to configure the TTS."]
-                or L["Install AwesomeCVar to open the Voice Chat settings."],
-        set = setValueComplex("message_voice"),
-        hidden = function()
-          return not anyMessageType("TTS");
-        end,
-      }
-      order = order + 1;
-    end
+      hidden = function()
+        return not anyMessageType("TTS");
+      end,
+    }
+    order = order + 1;
 
     local message_getter = function()
       return type(conditions[i].changes[j].value) == "table" and conditions[i].changes[j].value.message;
@@ -2909,7 +2909,7 @@ end
 
 local function SubPropertiesForChange(change)
   if change.property == "sound" then
-    return { "sound", "sound_channel", "sound_path", "sound_kit_id", "sound_repeat", "sound_type"}
+    return { "sound", "sound_channel", "sound_path", "sound_kit_id", "sound_repeat", "sound_type", "sound_fade"}
   elseif change.property == "customcode" then
     return { "custom" }
   elseif change.property == "glowexternal" then

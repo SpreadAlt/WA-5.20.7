@@ -1,5 +1,5 @@
 local MAJOR_VERSION = "LibGetFrame-1.0"
-local MINOR_VERSION = 63
+local MINOR_VERSION = 69
 if not LibStub then
   error(MAJOR_VERSION .. " requires LibStub.")
 end
@@ -8,27 +8,12 @@ if not lib then
   return
 end
 
-lib.timer = lib.timer or LibStub("AceTimer-3.0")
-if not lib.timer then
-  error(MAJOR_VERSION .. " requires AceTimer-3.0.")
-end
-
 lib.callbacks = lib.callbacks or LibStub("CallbackHandler-1.0"):New(lib)
 local callbacks = lib.callbacks
 
-local GetPlayerInfoByGUID, UnitExists, UnitIsUnit, SecureButton_GetUnit, IsAddOnLoaded  =
-  GetPlayerInfoByGUID, UnitExists, UnitIsUnit, SecureButton_GetUnit, IsAddOnLoaded
+local GetPlayerInfoByGUID, UnitExists, C_Timer, UnitIsUnit, SecureButton_GetUnit, C_AddOns =
+  GetPlayerInfoByGUID, UnitExists, C_Timer, UnitIsUnit, SecureButton_GetUnit, C_AddOns
 local tinsert, CopyTable, wipe = tinsert, CopyTable, wipe
-
-function lib.Mixin(object, ...)
-	for i = 1, select("#", ...) do
-		local mixin = select(i, ...);
-		for k, v in pairs(mixin) do
-			object[k] = v;
-		end
-	end
-	return object;
-end
 
 local maxDepth = 50
 
@@ -42,13 +27,11 @@ local defaultFramePriorities = {
   "^Vd", -- vuhdo
   "^HealBot_HealUnit", -- healbot
   "^hbPet_HealUnit", -- healbot
-  "^HealBot", -- healbot
   "^GridLayout", -- grid
   "^Grid2Layout", -- grid2
   "^NugRaid%d+UnitButton%d+", -- Aptechka
   "^PlexusLayout", -- plexus
   "^ElvUF_Raid%d*Group", -- elv
-  "^ElvUF_RaidGroup", -- elv
   "^oUF_bdGrid", -- bdgrid
   "^oUF_.-Raid", -- generic oUF
   "^LimeGroup", -- lime
@@ -57,25 +40,34 @@ local defaultFramePriorities = {
   "^LUFHeaderraid", -- luf
   "^AshToAshUnit%d+Unit%d+", -- AshToAsh
   "^Cell", -- Cell
+  "^XPerl_Raid_Grp", -- xperl
   -- party frames
   "^AleaUI_GroupHeader", -- Alea
-  "^SUFHeaderparty", -- suf
-  "^LUFHeaderparty", -- luf
+  "^SUFHeaderparty", --suf
+  "^LUFHeaderparty", --luf
   "^ElvUF_PartyGroup", -- elv
   "^oUF_.-Party", -- generic oUF
   "^PitBull4_Groups_Party", -- pitbull4
+  "^XPerl_party%d", -- xperl
   "^CompactRaid", -- blizz
   "^CompactParty", -- blizz
-  "^PartyFrame", -- blizz
-  "^PartyMemberFrame", -- blizz
+  "^PartyFrame",
+  -- boss frames
+  "^ElvUF_Boss%d$", -- elv
+  "^SUFHeaderbossUnitButton%d$", -- suf
+  "^LUFHeaderbossUnitButton%d$", -- luf
+  "^Boss%dTargetFrame$", -- blizz
+  "^UUF_Boss%d$", -- unhalted
   -- player frame
-  "^InvenUnitFrames_Player",
-  "^SUFUnitplayer",
-  "^LUFUnitplayer",
-  "^PitBull4_Frames_Player",
-  "^ElvUF_Player",
-  "^oUF_.-Player",
-  "^PlayerFrame",
+  "^InvenUnitFrames_Player$",
+  "^SUFUnitplayer$",
+  "^LUFUnitplayer$",
+  "^PitBull4_Frames_Player$",
+  "^ElvUF_Player$",
+  "^oUF_.-Player$",
+  "^XPerl_Player$",
+  "^UUF_Player$",
+  "^PlayerFrame$",
 }
 local getDefaultFramePriorities = function()
   return CopyTable(defaultFramePriorities)
@@ -83,50 +75,54 @@ end
 lib.getDefaultFramePriorities = getDefaultFramePriorities
 
 local defaultPlayerFrames = {
-  "^InvenUnitFrames_Player",
-  "SUFUnitplayer",
-  "LUFUnitplayer",
-  "PitBull4_Frames_Player",
-  "ElvUF_Player",
-  "oUF_.-Player",
-  "oUF_PlayerPlate",
-  "PlayerFrame",
+  "^InvenUnitFrames_Player$",
+  "^SUFUnitplayer$",
+  "^LUFUnitplayer$",
+  "^PitBull4_Frames_Player$",
+  "^ElvUF_Player$",
+  "^oUF_.-Player$",
+  "^oUF_PlayerPlate$",
+  "^XPerl_Player$",
+  "^UUF_Player$",
+  "^PlayerFrame$",
 }
 local getDefaultPlayerFrames = function()
   return CopyTable(defaultPlayerFrames)
 end
 lib.getDefaultPlayerFrames = getDefaultPlayerFrames
-
 local defaultTargetFrames = {
-  "^InvenUnitFrames_Target",
-  "SUFUnittarget",
-  "LUFUnittarget",
-  "PitBull4_Frames_Target",
-  "ElvUF_Target",
-  "oUF_.-Target",
-  "TargetFrame",
-  "^hbExtra_HealUnit",
+  "^InvenUnitFrames_Target$",
+  "^SUFUnittarget$",
+  "^LUFUnittarget$",
+  "^PitBull4_Frames_Target$",
+  "^ElvUF_Target$",
+  "^oUF_.-Target$",
+  "^TargetFrame$",
+  "^hbExtra_HealUnit$",
+  "^UUF_Target$",
+  "^XPerl_Target$"
 }
 local getDefaultTargetFrames = function()
   return CopyTable(defaultTargetFrames)
 end
 lib.getDefaultTargetFrames = getDefaultTargetFrames
-
 local defaultTargettargetFrames = {
-  "^InvenUnitFrames_TargetTarget",
-  "SUFUnittargetarget",
-  "LUFUnittargetarget",
-  "PitBull4_Frames_Target's target",
-  "ElvUF_TargetTarget",
-  "oUF_.-TargetTarget",
-  "oUF_ToT",
-  "TargetTargetFrame",
+  "^InvenUnitFrames_TargetTarget$",
+  "^SUFUnittargettarget$",
+  "^LUFUnittargettarget$",
+  "^PitBull4_Frames_Target's target$",
+  "^ElvUF_TargetTarget$",
+  "^oUF_.-TargetTarget$",
+  "^oUF_ToT$",
+  "^UUF_TargetTarget$",
+  "^TargetTargetFrame$",
+  "^XPerl_TargetTarget$",
+  "^TargetFrameToT$"
 }
 local getDefaultTargettargetFrames = function()
   return CopyTable(defaultTargettargetFrames)
 end
 lib.getDefaultTargettargetFrames = getDefaultTargettargetFrames
-
 local defaultPartyFrames = {
   "^InvenUnitFrames_Party%d",
   "^AleaUI_GroupHeader",
@@ -135,59 +131,70 @@ local defaultPartyFrames = {
   "^ElvUF_PartyGroup",
   "^oUF_.-Party",
   "^PitBull4_Groups_Party",
+  "^XPerl_party%d",
   "^PartyFrame",
   "^CompactParty",
-  "^PartyMemberFrame",
 }
 local getDefaultPartyFrames = function()
   return CopyTable(defaultPartyFrames)
 end
 lib.getDefaultPartyFrames = getDefaultPartyFrames
-
 local defaultPartyTargetFrames = {
   "SUFChildpartytarget%d",
+  "XPerl_party%dtargetFrame"
 }
 local getDefaultPartyTargetFrames = function()
   return CopyTable(defaultPartyTargetFrames)
 end
 lib.getDefaultPartyTargetFrames = getDefaultPartyTargetFrames
-
 local defaultFocusFrames = {
-  "^InvenUnitFrames_Focus",
-  "ElvUF_FocusTarget",
-  "LUFUnitfocus",
-  "FocusFrame",
-  "^hbExtra_HealUnit",
+  "^InvenUnitFrames_Focus$",
+  "^ElvUF_FocusTarget$",
+  "^SUFUnitfocus$",
+  "^LUFUnitfocus$",
+  "^FocusFrame$",
+  "^hbExtra_HealUnit$",
+  "^UUF_Focus$",
+  "^XPerl_Focus$"
 }
 local getDefaultFocusFrames = function()
   return CopyTable(defaultFocusFrames)
 end
 lib.getDefaultFocusFrames = getDefaultFocusFrames
-
 local defaultRaidFrames = {
   "^Vd",
   "^HealBot_HealUnit",
   "^hbPet_HealUnit",
-  "^HealBot",
   "^GridLayout",
   "^Grid2Layout",
   "^PlexusLayout",
   "^InvenRaidFrames3Group%dUnitButton",
   "^ElvUF_Raid%d*Group",
-  "^ElvUF_RaidGroup",
   "^oUF_.-Raid",
   "^AshToAsh",
   "^Cell",
   "^LimeGroup",
   "^SUFHeaderraid",
   "^LUFHeaderraid",
+  "^XPerl_Raid_Grp",
   "^CompactRaid",
-  "^RaidPullout",
 }
 local getDefaultRaidFrames = function()
   return CopyTable(defaultRaidFrames)
 end
 lib.getDefaultRaidFrames = getDefaultRaidFrames
+local defaultBossFrames = {
+  "^ElvUF_Boss%d$",
+  "^SUFHeaderbossUnitButton%d$",
+  "^LUFHeaderbossUnitButton%d$",
+  "^UUF_Boss%d$",
+  "^Boss%dTargetFrame$",
+}
+local getDefaultBossFrames = function()
+  return CopyTable(defaultBossFrames)
+end
+lib.getDefaultBossFrames = getDefaultBossFrames
+
 --
 local CacheMonitorMixin = {}
 function CacheMonitorMixin:Init(makeDiff)
@@ -241,8 +248,10 @@ function CacheMonitorMixin:CalcRemoved()
   end
 end
 function CacheMonitorMixin:WriteCache()
-  wipe(self.data)
-  self.data, self.cache = self.cache, {}
+  local tmp = self.data
+  self.data = self.cache
+  self.cache = tmp
+  wipe(self.cache)
 end
 function CacheMonitorMixin:Reset()
   if self.makeDiff then
@@ -254,8 +263,8 @@ end
 --
 local FrameToFrameName = {}   -- frame adress => frame name
 local FrameToUnit = {}        -- frame adress => unitToken
-lib.Mixin(FrameToFrameName, CacheMonitorMixin)
-lib.Mixin(FrameToUnit, CacheMonitorMixin)
+Mixin(FrameToFrameName, CacheMonitorMixin)
+Mixin(FrameToUnit, CacheMonitorMixin)
 FrameToFrameName:Init()
 FrameToUnit:Init(true)
 
@@ -330,11 +339,13 @@ local function recurseGetName(frame)
   end
   local parent = frame.GetParent and frame:GetParent()
   if parent then
-    local parentKey
-    for key, child in pairs(parent) do
-      if child == frame then
-        parentKey = key
-        break
+    local parentKey = frame.GetParentKey and frame:GetParentKey()
+    if not parentKey then
+      for key, child in pairs(parent) do
+        if child == frame then
+          parentKey = key
+          break
+        end
       end
     end
     if parentKey then
@@ -343,23 +354,23 @@ local function recurseGetName(frame)
   end
 end
 
---local notAUnitFrameTypeAttribute = {
---  cancelaura = true
---}
+local notAUnitFrameTypeAttribute = {
+  cancelaura = true
+}
 
 local function ScanFrames(depth, frame, ...)
   coroutine.yield()
   if not frame then
     return
   end
-  if depth < maxDepth then
+  if depth < maxDepth and frame.IsForbidden and not frame:IsForbidden() then
     local frameType = frame:GetObjectType()
     if frameType == "Frame" or frameType == "Button" then
       ScanFrames(depth + 1, frame:GetChildren())
     end
     if frameType == "Button" then
       local typeAttribute = frame:GetAttribute("type")
-      --if not notAUnitFrameTypeAttribute[typeAttribute] then
+      if not notAUnitFrameTypeAttribute[typeAttribute] then
         local unit = SecureButton_GetUnit(frame)
         if unit and frame:IsVisible() then
           local name = recurseGetName(frame)
@@ -368,7 +379,7 @@ local function ScanFrames(depth, frame, ...)
             FrameToUnit:Add(frame, unit)
           end
         end
-      --end
+      end
     end
   end
   ScanFrames(depth, ...)
@@ -443,9 +454,9 @@ local function ScanForUnitFrames(noDelay)
       doScanForUnitFrames()
     else
       status = "scan_delay"
-      lib.timer:ScheduleTimer(function()
+      C_Timer.After(1, function()
         doScanForUnitFrames()
-      end, 1)
+      end)
     end
   elseif status == "scanning" then
     status = "scan_queued"
@@ -470,8 +481,10 @@ local function GetUnitFrames(target, ignoredFrames)
     if type(target) ~= "string" then
       return
     end
-    if target:match("^0x") then
+    if target:find("Player") then
       target = select(6, GetPlayerInfoByGUID(target))
+    else
+      target = target:gsub(" .*", "")
     end
     if not UnitExists(target) then
       return
@@ -490,7 +503,7 @@ local function GetUnitFrames(target, ignoredFrames)
 end
 
 local function ElvuiWorkaround(frame)
-  if IsAddOnLoaded("ElvUI") and frame and frame:GetName() and frame:GetName():find("^ElvUF_") and frame.Health then
+  if C_AddOns.IsAddOnLoaded("ElvUI") and frame and frame:GetName() and frame:GetName():find("^ElvUF_") and frame.Health then
     return frame.Health
   else
     return frame
@@ -498,7 +511,7 @@ local function ElvuiWorkaround(frame)
 end
 
 local function CellGetUnitFrames(target, frames, framePriorities)
-  if not IsAddOnLoaded("Cell") or not Cell.GetUnitFramesForLGF then
+  if not C_AddOns.IsAddOnLoaded("Cell") or not Cell.GetUnitFramesForLGF then
     return frames
   end
   return Cell.GetUnitFramesForLGF(target, frames, framePriorities)
@@ -513,6 +526,7 @@ local defaultOptions = {
   ignorePartyTargetFrame = true,
   ignoreFocusFrame = true,
   ignoreRaidFrame = false,
+  ignoreBossFrame = false,
   playerFrames = defaultPlayerFrames,
   targetFrames = defaultTargetFrames,
   targettargetFrames = defaultTargettargetFrames,
@@ -520,10 +534,10 @@ local defaultOptions = {
   partyTargetFrames = defaultPartyTargetFrames,
   focusFrames = defaultFocusFrames,
   raidFrames = defaultRaidFrames,
+  bossFrames = defaultBossFrames,
   ignoreFrames = {
     "PitBull4_Frames_Target's target's target",
     "ElvUF_PartyGroup%dUnitButton%dTarget",
-    "RavenButton",
     "RavenOverlay",
     "AshToAshUnit%d+ShadowGroupHeaderUnitButton%d+",
     "InvenUnitFrames_TargetTargetTarget",
@@ -538,8 +552,8 @@ end
 lib.getDefaultOptions = getDefaultOptions
 
 local IterateGroupMembers = function(reversed, forceParty)
-  local unit = (not forceParty and GetNumRaidMembers() > 0) and 'raid' or 'party'
-  local numGroupMembers = unit == 'party' and GetNumPartyMembers() or GetNumRaidMembers()
+  local unit = (not forceParty and IsInRaid()) and 'raid' or 'party'
+  local numGroupMembers = unit == 'party' and GetNumSubgroupMembers() or GetNumGroupMembers()
   local i = reversed and numGroupMembers or (unit == 'party' and 0 or 1)
   return function()
     local ret
@@ -570,13 +584,12 @@ local function Init(noDelay)
   GetFramesCacheListener:RegisterEvent("PLAYER_REGEN_DISABLED")
   GetFramesCacheListener:RegisterEvent("PLAYER_REGEN_ENABLED")
   GetFramesCacheListener:RegisterEvent("PLAYER_ENTERING_WORLD")
-  GetFramesCacheListener:RegisterEvent("RAID_ROSTER_UPDATE")
-  GetFramesCacheListener:RegisterEvent("PARTY_MEMBERS_CHANGED")
+  GetFramesCacheListener:RegisterEvent("GROUP_ROSTER_UPDATE")
   GetFramesCacheListener:RegisterEvent("UNIT_PET")
   GetFramesCacheListener:RegisterEvent("INSTANCE_ENCOUNTER_ENGAGE_UNIT")
   GetFramesCacheListener:SetScript("OnEvent", function(self, event, unit, ...)
     fixGetUnitFrameIntegrity()
-    if event == "RAID_ROSTER_UPDATE" or event == "PARTY_MEMBERS_CHANGED" then
+    if event == "GROUP_ROSTER_UPDATE" then
       wipe(unitPetState)
       for member in IterateGroupMembers() do
         unitPetState[member] = UnitExists(member .. "pet") and true or nil
@@ -603,7 +616,11 @@ function lib.GetUnitFrame(target, opt)
   if type(GetFramesCacheListener) ~= "table" then
     Init(true)
   end
-  opt = opt or {}
+  local defaultOpt
+  if not opt then
+    opt = {}
+    defaultOpt = true
+  end
   setmetatable(opt, { __index = defaultOptions })
 
   if not target then
@@ -616,12 +633,12 @@ function lib.GetUnitFrame(target, opt)
       tinsert(ignoredFrames, v)
     end
   end
-  if opt.ignoreTargetFrame then
+  if opt.ignoreTargetFrame and not (defaultOpt and target == "target") then
     for _, v in pairs(opt.targetFrames) do
       tinsert(ignoredFrames, v)
     end
   end
-  if opt.ignoreTargettargetFrame then
+  if opt.ignoreTargettargetFrame and not (defaultOpt and target == "targettarget") then
     for _, v in pairs(opt.targettargetFrames) do
       tinsert(ignoredFrames, v)
     end
@@ -636,13 +653,18 @@ function lib.GetUnitFrame(target, opt)
       tinsert(ignoredFrames, v)
     end
   end
-  if opt.ignoreFocusFrame then
+  if opt.ignoreFocusFrame and not (defaultOpt and target == "focus") then
     for _, v in pairs(opt.focusFrames) do
       tinsert(ignoredFrames, v)
     end
   end
   if opt.ignoreRaidFrame then
     for _, v in pairs(opt.raidFrames) do
+      tinsert(ignoredFrames, v)
+    end
+  end
+  if opt.ignoreBossFrame then
+    for _, v in pairs(opt.bossFrames) do
       tinsert(ignoredFrames, v)
     end
   end
@@ -685,60 +707,34 @@ function lib.GetUnitNameplate(unit)
   local nameplate = C_NamePlate.GetNamePlateForUnit(unit)
   if nameplate then
     -- credit to Exality for https://wago.io/explosiveorbs
-    if nameplate.UnitFrame and nameplate.UnitFrame.Health then
-      -- ElvUI Bunny
-      return nameplate.UnitFrame.Health:IsShown() and nameplate.UnitFrame.Health
-          or nameplate.UnitFrame.Name:IsShown() and nameplate.UnitFrame.Name
-          or nameplate
-
-    elseif nameplate.unitFrame and nameplate.unitFrame.Health then
-      -- ElvUI Crum
-      return nameplate.unitFrame.Health:IsShown() and nameplate.unitFrame.Health
-          or nameplate.unitFrame.Name and nameplate.unitFrame.Name:IsShown() and nameplate.unitFrame.Name
-          or nameplate
-
-    elseif nameplate.unitFramePlater and nameplate.unitFramePlater.healthBar then
-      -- Plater
-      -- fallback to default nameplate in case plater is not on screen and uses blizzard default (module disabled, force-blizzard functionality)
-      return nameplate.unitFramePlater.PlaterOnScreen
-          and nameplate.unitFramePlater.healthBar
-          and nameplate.unitFramePlater.healthBar:IsShown() and nameplate.unitFramePlater.healthBar
-          or (nameplate.UnitFrame and nameplate.UnitFrame.healthBar and nameplate.UnitFrame.healthBar:IsShown() and nameplate.UnitFrame.healthBar)
-          or nameplate
-
+    if nameplate.unitFrame and nameplate.unitFrame.Health then
+      -- elvui
+      return nameplate.unitFrame.Health
+    elseif nameplate.unitFramePlater then
+      -- plater
+      -- use plater anchor frame (with fallback options).
+      return nameplate.PlaterAnchorFrame or nameplate.unitFramePlater.healthBar or (nameplate.UnitFrame and nameplate.UnitFrame.healthBar) or nameplate
     elseif nameplate.kui and nameplate.kui.HealthBar then
-      -- KuiNameplates
-      return nameplate.kui.HealthBar:IsShown() and nameplate.kui.HealthBar
-          or nameplate
-
+      -- kui
+      return nameplate.kui.HealthBar
     elseif nameplate.extended and nameplate.extended.visual and nameplate.extended.visual.healthbar then
-      -- TidyPlates
-      return nameplate.extended.visual.healthbar:IsShown() and nameplate.extended.visual.healthbar
-          or nameplate
-
+      -- tidyplates
+      return nameplate.extended.visual.healthbar
     elseif nameplate.TPFrame and nameplate.TPFrame.visual and nameplate.TPFrame.visual.healthbar then
-      -- Threat Plates
-      return nameplate.TPFrame.visual.healthbar:IsShown() and nameplate.TPFrame.visual.healthbar
-          or nameplate
-
+      -- tidyplates: threat plates
+      return nameplate.TPFrame.visual.healthbar
+    elseif nameplate.unitFrame and nameplate.unitFrame.Health then
+      -- bdui nameplates
+      return nameplate.unitFrame.Health
     elseif nameplate.ouf and nameplate.ouf.Health then
       -- bdNameplates
-      return nameplate.ouf.Health:IsShown() and nameplate.ouf.Health
-          or nameplate
-
-    elseif nameplate.slab
-        and nameplate.slab.components
-        and nameplate.slab.components.healthBar
-        and nameplate.slab.components.healthBar.frame then
+      return nameplate.ouf.Health
+    elseif nameplate.slab and nameplate.slab.components and nameplate.slab.components.healthBar and nameplate.slab.components.healthBar.frame then
       -- Slab
-      return nameplate.slab.components.healthBar.frame:IsShown() and nameplate.slab.components.healthBar.frame
-          or nameplate
-
+      return nameplate.slab.components.healthBar.frame
     elseif nameplate.UnitFrame and nameplate.UnitFrame.healthBar then
       -- default
-      return nameplate.UnitFrame.healthBar:IsShown() and nameplate.UnitFrame.healthBar
-          or nameplate
-
+      return nameplate.UnitFrame.healthBar
     else
       return nameplate
     end

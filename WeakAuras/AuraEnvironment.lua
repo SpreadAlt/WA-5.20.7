@@ -1,7 +1,10 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
+---@class WeakAuras
 local WeakAuras = WeakAuras
 local L = WeakAuras.L
 
@@ -9,13 +12,25 @@ local LibSerialize = LibStub("LibSerialize")
 local LibDeflate = LibStub:GetLibrary("LibDeflate")
 
 local UnitAura = UnitAura
+if UnitAura == nil then
+  --- Deprecated in 10.2.5
+  UnitAura = function(unitToken, index, filter)
+		local auraData = C_UnitAuras.GetAuraDataByIndex(unitToken, index, filter)
+		if not auraData then
+			return nil;
+		end
+
+		return AuraUtil.UnpackAuraData(auraData)
+	end
+end
+
 -- Unit Aura functions that return info about the first Aura matching the spellName or spellID given on the unit.
 local WA_GetUnitAura = function(unit, spell, filter)
   if filter and not filter:upper():find("FUL") then
       filter = filter.."|HELPFUL"
   end
   for i = 1, 255 do
-    local name, _, _, _, _, _, _, _, _, _, spellId = UnitAura(unit, i, filter)
+    local name, _, _, _, _, _, _, _, _, spellId = UnitAura(unit, i, filter)
     if not name then return end
     if spell == spellId or spell == name then
       return UnitAura(unit, i, filter)
@@ -142,7 +157,7 @@ WeakAuras.HideOverlayGlow = LCG.ButtonGlow_Stop
 
 local LGF = LibStub("LibGetFrame-1.0")
 WeakAuras.GetUnitFrame = LGF.GetUnitFrame
-WeakAuras.GetNamePlateForUnit = function(unit)
+WeakAuras.GetUnitNameplate =  function(unit)
   if Private.multiUnitUnits.nameplate[unit] then
     return LGF.GetUnitNameplate(unit)
   end
@@ -181,6 +196,10 @@ local blockedFunctions = {
   ChatEdit_ActivateChat = true,
   ChatEdit_ParseText = true,
   ChatEdit_OnEnterPressed = true,
+  GetButtonMetatable = true,
+  GetEditBoxMetatable = true,
+  GetFontStringMetatable = true,
+  GetFrameMetatable = true,
 }
 
 local blockedTables = {
@@ -192,7 +211,9 @@ local blockedTables = {
   ChatFrame1 = true,
   WeakAurasSaved = true,
   WeakAurasOptions = true,
-  WeakAurasOptionsSaved = true
+  WeakAurasOptionsSaved = true,
+  ItemRackUser = true,
+  ItemRackEvents = true
 }
 
 local aura_environments = {}
@@ -414,6 +435,10 @@ local function MakeReadOnly(input, options)
 end
 
 --- Wraps a table, so that accessing any key in it creates a deprecated warning
+---@param input table
+---@param name string
+---@param warningMsg string
+---@return table
 local function MakeDeprecated(input, name, warningMsg)
   return setmetatable({},
   {
@@ -477,16 +502,14 @@ local FakeWeakAurasMixin = {
     loaded = true
   },
   override = {
-    me = UnitName("player"),
+    me = GetUnitName("player", true),
     myGUID = UnitGUID("player"),
     GetData = function(id)
-      if current_uid then
-        local currentId = Private.UIDtoID(current_uid)
-        getDataCallCounts[currentId] = getDataCallCounts[currentId] + 1
-        if getDataCallCounts[currentId] > 99 then
-          Private.AuraWarnings.UpdateWarning(current_uid, "FakeWeakAurasGetData", "warning",
-                    L["This aura calls GetData a lot, which is a slow function."])
-        end
+      local currentId = Private.UIDtoID(current_uid)
+      getDataCallCounts[currentId] = getDataCallCounts[currentId] + 1
+      if getDataCallCounts[currentId] > 99 then
+        Private.AuraWarnings.UpdateWarning(current_uid, "FakeWeakAurasGetData", "warning",
+                  L["This aura calls GetData a lot, which is a slow function."])
       end
       local data = WeakAuras.GetData(id)
       return data and CopyTable(data) or nil
@@ -526,8 +549,20 @@ local overridden = {
   WeakAuras = FakeWeakAuras
 }
 
+-- WORKAROUND API which return Mixin'd values need those mixin "rawgettable" in caller's fenv #5071
+local mixins = {
+  ColorMixin = ColorMixin,
+  Vector2DMixin = Vector2DMixin,
+  Vector3DMixin = Vector3DMixin,
+  ItemLocationMixin = ItemLocationMixin,
+  ItemTransmogInfoMixin = ItemTransmogInfoMixin,
+  TransmogPendingInfoMixin = TransmogPendingInfoMixin,
+  TransmogLocationMixin = TransmogLocationMixin,
+  PlayerLocationMixin = PlayerLocationMixin,
+}
+
 local env_getglobal_custom
-local exec_env_custom = setmetatable({},
+local exec_env_custom = setmetatable(CopyTable(mixins),
 {
   __index = function(t, k)
     if k == "_G" then
@@ -538,6 +573,10 @@ local exec_env_custom = setmetatable({},
       return current_aura_env
     elseif k == "DebugPrint" then
       return DebugPrint
+    elseif k == "C_Timer" then
+      return current_aura_env and Private.AuraEnvironmentWrappedSystem.Get("C_Timer",
+                                      current_aura_env.id, current_aura_env.cloneId)
+                              or C_Timer
     elseif blockedFunctions[k] then
       blocked(k)
       return function(_) end
@@ -588,7 +627,7 @@ local PrivateForBuiltIn = {
 }
 
 local env_getglobal_builtin
-local exec_env_builtin = setmetatable({},
+local exec_env_builtin = setmetatable(CopyTable(mixins),
 {
   __index = function(t, k)
     if k == "_G" then
@@ -652,6 +691,7 @@ local function CreateFunctionCache(exec_env)
         end
         return nil, errorString
       elseif loadedFunction then
+        --- @cast loadedFunction -nil
         setfenv(loadedFunction, exec_env)
         local success, func = pcall(assert(loadedFunction))
         if success then

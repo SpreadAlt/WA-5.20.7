@@ -1,9 +1,13 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class Private
 local Private = select(2, ...)
 
+---@class WeakAuras
 local WeakAuras = WeakAuras;
 local L = WeakAuras.L;
+local GetAtlasInfo = C_Texture and C_Texture.GetAtlasInfo or GetAtlasInfo
 
 Private.regionPrototype = {};
 
@@ -149,7 +153,7 @@ end
 
 local function SoundStop(self, fadeoutTime)
   Private.StartProfileSystem("sound");
-  if (StopSound and self.soundHandle) then
+  if (self.soundHandle) then
     StopSound(self.soundHandle, fadeoutTime);
   end
   Private.StopProfileSystem("sound");
@@ -164,7 +168,7 @@ local function SoundPlayHelper(self)
     return;
   end
 
-  if (WeakAuras.IsOptionsOpen() or Private.SquelchingActions()) then
+  if (WeakAuras.IsOptionsOpen() or Private.SquelchingActions() or WeakAuras.InLoadingScreen()) then
     Private.StopProfileSystem("sound");
     return;
   end
@@ -236,7 +240,7 @@ local function SendChat(self, options)
   if (not options or WeakAuras.IsOptionsOpen()) then
     return
   end
-  Private.HandleChatAction(options.message_type, options.message, options.message_dest, options.message_dest_isunit, options.message_channel, options.r, options.g, options.b, self, options.message_custom, nil, options.message_formaters);
+  Private.HandleChatAction(options.message_type, options.message, options.message_dest, options.message_dest_isunit, options.message_channel, options.r, options.g, options.b, self, {customFunc = options.message_custom}, nil, options.message_formaters);
 end
 
 local function RunCode(self, func)
@@ -263,10 +267,7 @@ local function UpdatePosition(self)
   local yOffset = self.yOffset + (self.yOffsetAnim or 0) + (self.yOffsetRelative or 0)
   self:RealClearAllPoints();
 
-  local ok = pcall(self.SetPoint, self, self.anchorPoint, self.relativeTo, self.relativePoint, xOffset, yOffset);
-  if not ok then
-    Private.GetErrorHandlerId(self.id, L["Update Position"])
-  end
+  xpcall(self.SetPoint, Private.GetErrorHandlerId(self.id, L["Update Position"]), self, self.anchorPoint, self.relativeTo, self.relativePoint, xOffset, yOffset);
 end
 
 local function ResetPosition(self)
@@ -401,10 +402,11 @@ local function UpdateProgressFromState(self, minMaxConfig, state, progressSource
   local progressType = progressSource[2]
   local property = progressSource[3]
   local totalProperty = progressSource[4]
-  local inverseProperty = progressSource[5]
-  local pausedProperty = progressSource[6]
-  local remainingProperty = progressSource[7]
-  local useAdditionalProgress = progressSource[8]
+  local modRateProperty = progressSource[5]
+  local inverseProperty = progressSource[6]
+  local pausedProperty = progressSource[7]
+  local remainingProperty = progressSource[8]
+  local useAdditionalProgress = progressSource[9]
 
   if not state then
     self.minProgress, self.maxProgress = nil, nil
@@ -426,7 +428,7 @@ local function UpdateProgressFromState(self, minMaxConfig, state, progressSource
     if type(value) ~= "number" then value = 0 end
     local total = totalProperty and state[totalProperty]
     if type(total) ~= "number" then total = 0 end
-    -- We don't care about inverse or paused
+    -- We don't care about inverse, modRate or paused
     local adjustMin
     if minMaxConfig.adjustedMin then
       adjustMin = minMaxConfig.adjustedMin
@@ -479,6 +481,7 @@ local function UpdateProgressFromState(self, minMaxConfig, state, progressSource
     if type(duration) ~= "number" then
       duration = 0
     end
+    local modRate = modRateProperty and state[modRateProperty] or nil
     local adjustMin
     if minMaxConfig.adjustedMin then
       adjustMin = minMaxConfig.adjustedMin
@@ -503,6 +506,7 @@ local function UpdateProgressFromState(self, minMaxConfig, state, progressSource
     self.duration = max - adjustMin
     self.expirationTime = expirationTime - adjustMin
     self.remaining = remaining
+    self.modRate = modRate
     self.inverse = inverse
     self.paused = paused
     if self.UpdateTime then
@@ -540,6 +544,7 @@ local function UpdateProgressFromState(self, minMaxConfig, state, progressSource
     self.progressType = "timed"
     self.duration = max - adjustMin
     self.expirationTime = startTime + adjustMin + self.duration
+    self.modRate = nil
     self.inverse = true
     self.paused = false
     self.remaining = nil
@@ -556,8 +561,8 @@ local function UpdateProgressFromState(self, minMaxConfig, state, progressSource
   end
 end
 
-local autoTimedProgressSource = {-1, "timer", "expirationTime", "duration", "inverse", "paused", "remaining", true}
-local autoStaticProgressSource = {-1, "number", "value", "total", nil, nil, nil, true}
+local autoTimedProgressSource = {-1, "timer", "expirationTime", "duration", "modRate", "inverse", "paused", "remaining", true}
+local autoStaticProgressSource = {-1, "number", "value", "total", nil, nil, nil, nil, true}
 local function UpdateProgressFromAuto(self, minMaxConfig, state)
   if state.progressType == "timed"  then
     UpdateProgressFromState(self, minMaxConfig, state, autoTimedProgressSource)
@@ -568,6 +573,7 @@ local function UpdateProgressFromAuto(self, minMaxConfig, state)
     self.progressType = "timed"
     self.duration = 0
     self.expirationTime = math.huge
+    self.modRate = nil
     self.inverse = false
     self.paused = true
     self.remaining = math.huge
@@ -649,15 +655,9 @@ local function SetAnimAlpha(self, alpha)
   self.animAlpha = alpha;
   local errorHandler = Private.GetErrorHandlerId(self.id, L["Custom Fade Animation"])
   if (WeakAuras.IsOptionsOpen()) then
-    local ok = pcall(self.SetAlpha, self, max(self.animAlpha or self.alpha or 1, 0.5))
-    if not ok then
-      errorHandler()
-    end
+    xpcall(self.SetAlpha, errorHandler, self, max(self.animAlpha or self.alpha or 1, 0.5))
   else
-    local ok = pcall(self.SetAlpha, self, self.animAlpha or self.alpha or 1)
-    if not ok then
-      errorHandler()
-    end
+    xpcall(self.SetAlpha, errorHandler, self, self.animAlpha or self.alpha or 1)
   end
   self.subRegionEvents:Notify("AlphaChanged")
 end
@@ -939,6 +939,7 @@ function Private.regionPrototype.AddSetDurationInfo(region, uid)
         self.progressType = "timed"
         self.duration = (duration ~= 0 and self.adjustedMax or duration) - adjustMin
         self.expirationTime = expirationTime - adjustMin
+        self.modRate = nil
         self.inverse = inverse
         self.paused = false
         self.remaining = nil
@@ -1169,12 +1170,12 @@ function Private.regionPrototype.AddExpandFunction(data, region, cloneId, parent
   end
 end
 
-function Private.SetTextureOrSpellTexture(texture, path)
-  local spellID = tonumber(path)
-  if spellID then
-    return texture:SetTexture(select(3, GetSpellInfo(spellID)) or spellID)
+function Private.SetTextureOrAtlas(texture, path, wrapModeH, wrapModeV)
+  texture.IsAtlas = type(path) == "string" and GetAtlasInfo(path) ~= nil
+  if texture.IsAtlas then
+    return texture:SetAtlas(path);
   else
-    return texture:SetTexture(path)
+    return texture:SetTexture(path, wrapModeH, wrapModeV);
   end
 end
 

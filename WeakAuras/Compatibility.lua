@@ -1,172 +1,189 @@
-local ipairs = ipairs
-local pairs = pairs
-local ceil, floor = math.ceil, math.floor
+-- This file is only for base functions that work differently or are deprecated in some versions of wow
 
-local GetNumPartyMembers = GetNumPartyMembers
-local GetNumRaidMembers = GetNumRaidMembers
+if not WeakAuras.IsLibsOK() then return end
+---@type string
+local AddonName = ...
+---@class Private
+local Private = select(2, ...)
 
-function noop()
-
-end
-
-function ipairs_reverse(table)
-	local function Enumerator(table, index)
-		index = index - 1;
-		local value = table[index];
-		if value ~= nil then
-			return index, value;
-		end
-	end
-	return Enumerator, table, #table + 1;
-end
-
-function tInvert(tbl)
-	local inverted = {};
-	for k, v in pairs(tbl) do
-		inverted[v] = k;
-	end
-	return inverted;
-end
-
-function Round(value)
-	if value < 0 then
-		return ceil(value - .5);
-	end
-	return floor(value + .5);
-end
-
-function tIndexOf(tbl, item)
-	for i, v in ipairs(tbl) do
-		if item == v then
-			return i;
-		end
-	end
-end
-
-function TableHasAnyEntries(tbl)
-  if tbl and type(tbl) == "table" then
-      for _ in pairs(tbl) do
-          return true
-      end
-  end
-  return false
-end
-
-function tAppendAll(table, addedArray)
-  for i, element in ipairs(addedArray) do
-    tinsert(table, element);
-  end
-end
-
-function MergeTable(t1, t2)
-  local merged = {}
-  for k, v in pairs(t1) do
-    merged[k] = v
-  end
-  for k, v in pairs(t2) do
-    merged[k] = v
-  end
-  return merged
-end
-
-function tCompare(t1, t2)
-  for k, v in pairs(t1) do
-    if type(v) == "table" and type(t2[k]) == "table" then
-      if not tCompare(v, t2[k]) then
-        return false
-      end
-    elseif t2[k] ~= v then
-      return false
+if GetSpellInfo then
+  Private.ExecEnv.GetSpellInfo = GetSpellInfo
+  Private.ExecEnv.GetSpellName = GetSpellInfo
+else
+  Private.ExecEnv.GetSpellInfo = function(spellID)
+    if not spellID then
+      return nil
+    end
+    local spellInfo = C_Spell.GetSpellInfo(spellID)
+    if spellInfo then
+      return spellInfo.name, nil, spellInfo.iconID, spellInfo.castTime, spellInfo.minRange, spellInfo.maxRange, spellInfo.spellID, spellInfo.originalIconID
     end
   end
-  for k in pairs(t2) do
-    if t1[k] == nil then
-      return false
+  Private.ExecEnv.GetSpellName = C_Spell.GetSpellName
+end
+
+if GetSpellTexture then
+  Private.ExecEnv.GetSpellIcon = GetSpellTexture
+else
+  Private.ExecEnv.GetSpellIcon = C_Spell.GetSpellTexture
+end
+
+if IsUsableSpell then
+  Private.ExecEnv.IsUsableSpell = IsUsableSpell
+else
+  Private.ExecEnv.IsUsableSpell = C_Spell.IsSpellUsable
+end
+
+if C_SpecializationInfo and C_SpecializationInfo.GetSpecialization then
+  Private.ExecEnv.GetSpecialization = C_SpecializationInfo.GetSpecialization
+else
+  Private.ExecEnv.GetSpecialization = GetSpecialization
+end
+if C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfo then
+  Private.ExecEnv.GetSpecializationInfo = C_SpecializationInfo.GetSpecializationInfo
+else
+  Private.ExecEnv.GetSpecializationInfo = GetSpecializationInfo
+end
+if C_SpecializationInfo and C_SpecializationInfo.GetNumSpecializationsForClassID then
+  Private.ExecEnv.GetNumSpecializationsForClassID = C_SpecializationInfo.GetNumSpecializationsForClassID
+else
+  Private.ExecEnv.GetNumSpecializationsForClassID = GetNumSpecializationsForClassID
+end
+if WeakAuras.IsMists() then
+  local specsByClassID = {
+    [0] = { 74, 81, 79 },
+    [1] = { 71, 72, 73, 1446 },
+    [2] = { 65, 66, 70, 1451 },
+    [3] = { 253, 254, 255, 1448 },
+    [4] = { 259, 260, 261, 1453 },
+    [5] = { 256, 257, 258, 1452 },
+    [6] = { 250, 251, 252, 1455 },
+    [7] = { 262, 263, 264, 1444 },
+    [8] = { 62, 63, 64, 1449 },
+    [9] = { 265, 266, 267, 1454 },
+    [10] = { 268, 270, 269, 1450 },
+    [11] = { 102, 103, 104, 105, 1447 },
+  }
+  Private.ExecEnv.GetSpecializationInfoForClassID = function (classID, specIndex)
+    local specID = specsByClassID[classID][specIndex]
+    if not specID then
+      return nil
+    end
+    return GetSpecializationInfoByID(specID)
+  end
+else
+  Private.ExecEnv.GetSpecializationInfoForClassID = GetSpecializationInfoForClassID
+end
+
+if C_SpecializationInfo and C_SpecializationInfo.GetTalentInfo and not WeakAuras.IsClassicEra() then
+  if WeakAuras.IsWrathClassic() then
+    -- copy pasta from Interface/AddOns/Blizzard_DeprecatedSpecialization/Deprecated_Specialization_Wrath.lua
+    Private.ExecEnv.GetTalentInfo = function(tabIndex, talentIndex, isInspect, isPet, groupIndex)
+      local talentInfoQuery = {}
+      talentInfoQuery.specializationIndex = tabIndex
+      talentInfoQuery.talentIndex = talentIndex
+      talentInfoQuery.isInspect = isInspect
+      talentInfoQuery.groupIndex = groupIndex
+      local talentInfo = C_SpecializationInfo.GetTalentInfo(talentInfoQuery)
+      if not talentInfo then
+        return nil
+      end
+
+    return talentInfo.name, talentInfo.icon, talentInfo.tier, talentInfo.column, talentInfo.rank,
+      talentInfo.maxRank, talentInfo.meetsPrereq, talentInfo.previewRank,
+      talentInfo.meetsPreviewPrereq, talentInfo.isExceptional, talentInfo.hasGoldBorder,
+      talentInfo.talentID
+    end
+  else
+    -- copy pasta from Interface/AddOns/Blizzard_DeprecatedSpecialization/Deprecated_Specialization_Mists.lua
+    Private.ExecEnv.GetTalentInfo = function(tabIndex, talentIndex, isInspect, isPet, groupIndex)
+      -- Note: tabIndex, talentIndex, and isPet are not supported parameters in 5.5.x and onward.
+      local numColumns = 3
+      local talentInfoQuery = {}
+      talentInfoQuery.tier = math.ceil(talentIndex / numColumns)
+      talentInfoQuery.column = talentIndex % numColumns
+      talentInfoQuery.groupIndex = groupIndex
+      talentInfoQuery.isInspect = isInspect
+      talentInfoQuery.target = nil
+      local talentInfo = C_SpecializationInfo.GetTalentInfo(talentInfoQuery)
+      if not talentInfo then
+        return nil
+      end
+
+      -- Note: rank, maxRank, meetsPrereq, previewRank, meetsPreviewPrereq, isExceptional, and hasGoldBorder are not supported outputs in 5.5.x and onward.
+      -- They have default values not reflective of actual system state.
+      -- selected, available, spellID, isPVPTalentUnlocked, known, and grantedByAura are new supported outputs in 5.5.x and onward.
+      return talentInfo.name, talentInfo.icon, talentInfo.tier, talentInfo.column, talentInfo.selected and talentInfo.rank or 0,
+        talentInfo.maxRank, talentInfo.meetsPrereq, talentInfo.previewRank,
+        talentInfo.meetsPreviewPrereq, talentInfo.isExceptional, talentInfo.hasGoldBorder,
+        talentInfo.talentID
     end
   end
-  return true
+else
+  Private.ExecEnv.GetTalentInfo = GetTalentInfo
 end
 
-function IsInGroup()
-	return GetNumPartyMembers() > 0 or GetNumRaidMembers() > 0
+Private.ExecEnv.GetNumFactions = C_Reputation.GetNumFactions or GetNumFactions
+
+Private.ExecEnv.GetFactionDataByIndex = C_Reputation.GetFactionDataByIndex or function(index)
+  local name, description, standingID, barMin, barMax, barValue, atWarWith, canToggleAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID, hasBonusRepGain, canSetInactive = GetFactionInfo(index)
+  return {
+    factionID = factionID,
+    name = name,
+    description = description,
+    reaction = standingID,
+    currentReactionThreshold = barMin,
+    nextReactionThreshold = barMax,
+    currentStanding = barValue,
+    atWarWith = atWarWith,
+    canToggleAtWar = canToggleAtWar,
+    isChild = isChild,
+    isHeader = isHeader,
+    isHeaderWithRep = hasRep,
+    isCollapsed = isCollapsed,
+    isWatched = isWatched,
+    hasBonusRepGain = hasBonusRepGain,
+    canSetInactive = canSetInactive,
+    isAccountWide = nil
+  }
 end
 
-function IsInRaid()
-	return GetNumRaidMembers() > 0
+Private.ExecEnv.GetFactionDataByID = C_Reputation.GetFactionDataByID or function(ID)
+  local name, description, standingID, barMin, barMax, barValue, atWarWith, canToggleAtWar, isHeader, isCollapsed, hasRep, isWatched, isChild, factionID, hasBonusRepGain, canSetInactive = GetFactionInfoByID(ID)
+  return {
+    factionID = factionID,
+    name = name,
+    description = description,
+    reaction = standingID,
+    currentReactionThreshold = barMin,
+    nextReactionThreshold = barMax,
+    currentStanding = barValue,
+    atWarWith = atWarWith,
+    canToggleAtWar = canToggleAtWar,
+    isChild = isChild,
+    isHeader = isHeader,
+    isHeaderWithRep = hasRep,
+    isCollapsed = isCollapsed,
+    isWatched = isWatched,
+    hasBonusRepGain = hasBonusRepGain,
+    canSetInactive = canSetInactive,
+    isAccountWide = nil
+  }
 end
 
-function GetNumSubgroupMembers()
-	return GetNumPartyMembers()
+-- GetWatchedFactionData behaves differentlly, but we only need the Id, so do a trival wrapper
+if C_Reputation.GetWatchedFactionData then
+  Private.ExecEnv.GetWatchedFactionId = function()
+    local data = C_Reputation.GetWatchedFactionData()
+    return data and data.factionID or nil
+  end
+else
+  Private.ExecEnv.GetWatchedFactionId = function()
+    return select(6, GetWatchedFactionInfo())
+  end
 end
 
-function GetNumGroupMembers()
-	return IsInRaid() and GetNumRaidMembers() or GetNumPartyMembers()
-end
-
-RAID_CLASS_COLORS.HUNTER.colorStr = "ffabd473"
-RAID_CLASS_COLORS.WARLOCK.colorStr = "ff8788ee"
-RAID_CLASS_COLORS.PRIEST.colorStr = "ffffffff"
-RAID_CLASS_COLORS.PALADIN.colorStr = "fff58cba"
-RAID_CLASS_COLORS.MAGE.colorStr = "ff3fc7eb"
-RAID_CLASS_COLORS.ROGUE.colorStr = "fffff569"
-RAID_CLASS_COLORS.DRUID.colorStr = "ffff7d0a"
-RAID_CLASS_COLORS.SHAMAN.colorStr = "ff0070de"
-RAID_CLASS_COLORS.WARRIOR.colorStr = "ffc79c6e"
-RAID_CLASS_COLORS.DEATHKNIGHT.colorStr = "ffc41f3b"
-
-function WrapTextInColorCode(text, colorHexString)
-  return ("|c%s%s|r"):format(colorHexString, text);
-end
-
-function CreateTextureMarkup(file, fileWidth, fileHeight, width, height, left, right, top, bottom, xOffset, yOffset)
-	return ("|T%s:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d|t"):format(
-		  file
-		, height
-		, width
-		, xOffset or 0
-		, yOffset or 0
-		, fileWidth
-		, fileHeight
-		, left * fileWidth
-		, right * fileWidth
-		, top * fileHeight
-		, bottom * fileHeight
-	);
-end
-
-function Clamp(value, min, max)
-	if value > max then
-		return max;
-	elseif value < min then
-		return min;
-	end
-	return value;
-end
-
--- This section is mostly used by Private.SmoothStatusBarMixin
-function Lerp(startValue, endValue, amount)
-	return (1 - amount) * startValue + amount * endValue;
-end
-
-function Saturate(value)
-	return Clamp(value, 0, 1);
-end
-
-local TARGET_FRAME_PER_SEC = 60.0;
-function DeltaLerp(startValue, endValue, amount, timeSec)
-	return Lerp(startValue, endValue, Saturate(amount * timeSec * TARGET_FRAME_PER_SEC));
-end
-
-function FrameDeltaLerp(startValue, endValue, amount, elapsed)
-	return DeltaLerp(startValue, endValue, amount, elapsed);
-end
-
--- Fix FrameStrata of ChatFrame
-for i = 1, NUM_CHAT_WINDOWS do
-	local chatFrame = _G["ChatFrame" .. i]
-	if chatFrame and type(chatFrame.GetFrameStrata) == "function" and type(chatFrame.SetFrameStrata) == "function" then
-		if chatFrame:GetFrameStrata() == "BACKGROUND" then
-			chatFrame:SetFrameStrata("MEDIUM")
-		end
-	end
-end
+Private.ExecEnv.ExpandFactionHeader = C_Reputation.ExpandFactionHeader or ExpandFactionHeader
+Private.ExecEnv.CollapseFactionHeader = C_Reputation.CollapseFactionHeader or CollapseFactionHeader
+Private.ExecEnv.AreLegacyReputationsShown = C_Reputation.AreLegacyReputationsShown or function() return true end
+Private.ExecEnv.GetReputationSortType = C_Reputation.GetReputationSortType or function() return 0 end;

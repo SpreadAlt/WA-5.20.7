@@ -1,5 +1,8 @@
 if not WeakAuras.IsLibsOK() then return end
 
+---@class OptionsPrivate
+local OptionsPrivate = select(2, ...)
+
 local Type, Version = "WeakAurasMultiLineEditBox", 39
 local AceGUI = LibStub and LibStub("AceGUI-3.0", true)
 if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then return end
@@ -8,7 +11,7 @@ if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then return end
 local pairs = pairs
 
 -- WoW APIs
-local GetCursorInfo, GetSpellInfo, ClearCursor = GetCursorInfo, GetSpellInfo, ClearCursor
+local GetCursorInfo, ClearCursor = GetCursorInfo, ClearCursor
 local CreateFrame, UIParent = CreateFrame, UIParent
 local _G = _G
 
@@ -25,6 +28,7 @@ function _G.AceGUIWeakAurasMultiLineEditBoxInsertLink(text)
   for i = 1, AceGUI:GetWidgetCount(Type) do
     local editbox = _G[("WeakAurasMultiLineEditBox%uEdit"):format(i)]
     if editbox and editbox:IsVisible() and editbox:HasFocus() then
+      text = text:gsub("|", "||")
       editbox:Insert(text)
       return true
     end
@@ -109,10 +113,10 @@ local function OnMouseUp(self)                                                  
 end
 
 local function OnReceiveDrag(self)                                               -- EditBox / ScrollFrame
-  local type, id, info = GetCursorInfo()
-  if type == "spell" then
-    info = GetSpellInfo(id, info)
-  elseif type ~= "item" then
+  local infoType, spellIndex, bookType, info = GetCursorInfo()
+  if infoType == "spell" then
+    info = OptionsPrivate.Private.ExecEnv.GetSpellName(info)
+  elseif infoType ~= "item" then
     return
   end
   ClearCursor()
@@ -309,11 +313,11 @@ local backdrop = {
 }
 
 local function Constructor()
-  local widgetNum = AceGUI:GetNextWidgetNum(Type)
-  local frame = CreateFrame("Frame", ("%s%Frame"):format(Type, widgetNum), UIParent)
+  local frame = CreateFrame("Frame", nil, UIParent)
   frame:Hide()
 
   frame:SetScript("OnShow", OnFrameShow);
+  local widgetNum = AceGUI:GetNextWidgetNum(Type)
 
   local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   label:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -4)
@@ -333,7 +337,7 @@ local function Constructor()
   local extraButtons = {};
   extraButtons[0] = button;
 
-  local scrollBG = CreateFrame("Frame", nil, frame)
+  local scrollBG = CreateFrame("Frame", nil, frame, "BackdropTemplate")
   scrollBG:SetBackdrop(backdrop)
   scrollBG:SetBackdropColor(0, 0, 0)
   scrollBG:SetBackdropBorderColor(0.4, 0.4, 0.4)

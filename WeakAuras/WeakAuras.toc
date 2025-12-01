@@ -1,9 +1,9 @@
-## Interface: 30300
+## Interface: 110205
 ## Title: WeakAuras
 ## Author: The WeakAuras Team
-## Version: 5.20.4
+## Version: 5.20.7
 ## IconTexture: Interface\AddOns\WeakAuras\Media\Textures\icon.blp
-## X-Flavor: 3.3.5
+## X-Flavor: Mainline
 ## Notes: A powerful, comprehensive utility for displaying graphics and information based on buffs, debuffs, and other triggers.
 ## Notes-esES: Potente y completa aplicación que te permitirá mostrar por pantalla múltiples diseños, basados en beneficios, perjuicios y otros activadores.
 ## Notes-esMX: Potente y completa aplicación que te permitirá mostrar por pantalla múltiples diseños, basados en beneficios, perjuicios y otros activadores.
@@ -19,17 +19,21 @@
 ## DefaultState: Enabled
 ## LoadOnDemand: 0
 ## SavedVariables: WeakAurasSaved
-## OptionalDeps: Ace3, LibCompress, LibSharedMedia-3.0, AceGUI-3.0-SharedMediaWidgets, Masque, GTFO, LibButtonGlow-1.0, LibSpellRange-1.0, LibRangeCheck-2.0, LibDBIcon-1.0, LibGetFrame-1.0, LibGroupTalents, !!AddonLocale, CustomNames, BigWigs, DBM-Core, AwesomeCVar
-
-Compatibility.lua
-Pools.lua
+## OptionalDeps: Ace3, LibCompress, LibSharedMedia-3.0, AceGUI-3.0-SharedMediaWidgets, Masque, GTFO, LibButtonGlow-1.0, LibSpellRange-1.0, LibRangeCheck-3.0, LibDBIcon-1.0, LibGetFrame-1.0, LibSpecialization, !LibUIDropDownMenu, !!AddonLocale, CustomNames, BigWigs, DBM-Core
 
 # External code + initialization
 embeds.xml
+
+# TaintLess
+Libs\TaintLess\TaintLess.xml
+
+# Client flavor specific libs
+Libs\LibSpecialization\LibSpecialization.lua
+Libs\LibDispel\LibDispel.lua
+
 Init.lua
-Templates.lua
+Compatibility.lua
 locales.xml
-TimeUtil.lua
 ArchiveTypes\Repository.lua
 DefaultOptions.lua
 
@@ -37,12 +41,11 @@ DefaultOptions.lua
 SubscribableObject.lua
 Features.lua
 TimeMachine.lua
-Types_ClassicPlus.lua
-Types_TBC.lua
-Types_Wrath.lua
+Types_Retail.lua
 Types.lua
 Prototypes.lua
 Profiling.lua
+Profiling.xml
 WeakAuras.lua
 History.lua
 Transmission.lua
@@ -52,7 +55,7 @@ Conditions.lua
 AnchorToWeakAuras.lua
 
 # Trigger systems
-LibGroupTalentsWrapper.lua
+LibSpecializationWrapper.lua
 BuffTrigger2.lua
 GenericTrigger.lua
 BossMods.lua
@@ -61,12 +64,17 @@ BossMods.lua
 TSUHelpers.lua
 AuraWarnings.lua
 AuraEnvironment.lua
+AuraEnvironmentWrappedSystems.lua
 DebugLog.lua
+Dragonriding.lua
 
 # Region support
 RegionTypes\SmoothStatusBarMixin.lua
 RegionTypes\RegionPrototype.lua
 RegionTypes\Empty.lua
+BaseRegions\TextureCoords.lua
+BaseRegions\CircularProgressTexture.lua
+BaseRegions\LinearProgressTexture.lua
 RegionTypes\ProgressTexture.lua
 BaseRegions\Texture.lua
 RegionTypes\Texture.lua
@@ -88,6 +96,9 @@ SubRegionTypes\Tick.lua
 SubRegionTypes\Model.lua
 SubRegionTypes\StopMotion.lua
 SubRegionTypes\Texture.lua
+SubRegionTypes\CircularProgressTexture.lua
+SubRegionTypes\LinearProgressTexture.lua
 
-#Misc
+# Misc
+Legendaries.lua
 DiscordList.lua

@@ -31,6 +31,7 @@ do
 		if next(contentFrameCache) then
 			frame = table.remove(contentFrameCache)
 		else
+      ---@class Button
 			frame = CreateFrame("Button", nil, UIParent)
 				--frame:SetWidth(200)
 				frame:SetHeight(18)
@@ -102,7 +103,11 @@ do
 	local function SetText(self, text) -- Set the text displayed in the box.
 		self.frame.text:SetText(text or "")
 		local statusbar = self.list[text] ~= text and self.list[text] or Media:Fetch('statusbar', text)
-		self.bar:SetTexture(statusbar)
+		if type(statusbar) == "string" and C_Texture.GetAtlasInfo(statusbar) ~= nil then
+			self.bar:SetAtlas(statusbar)
+		else
+			self.bar:SetTexture(statusbar)
+		end
 	end
 
 	local function SetLabel(self, text) -- Set the text for the label.
@@ -157,7 +162,11 @@ do
 				end
 
 				local statusbar = self.list[k] ~= k and self.list[k] or Media:Fetch('statusbar',k)
-				f.bar:SetTexture(statusbar)
+				if type(statusbar) == "string" and C_Texture.GetAtlasInfo(statusbar) ~= nil then
+					f.bar:SetAtlas(statusbar)
+				else
+					f.bar:SetTexture(statusbar)
+				end
 				f.obj = self
 				f.dropdown = self.dropdown
 				self.dropdown:AddFrame(f)

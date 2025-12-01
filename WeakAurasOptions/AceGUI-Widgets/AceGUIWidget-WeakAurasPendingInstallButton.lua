@@ -1,6 +1,7 @@
 if not WeakAuras.IsLibsOK() then return end
-
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local pairs, next, type, unpack = pairs, next, type, unpack
@@ -231,6 +232,7 @@ local function Constructor()
   update:Hide()
   updateLogo:Hide()
 
+  --- @type table<string, any>
   local widget = {
     frame = button,
     title = title,

@@ -1,16 +1,27 @@
-if not WeakAuras.IsLibsOK() then return end
-
 local L = WeakAuras.L
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 local texture_types = WeakAuras.StopMotion.texture_types;
 local texture_data = WeakAuras.StopMotion.texture_data;
 local animation_types = WeakAuras.StopMotion.animation_types;
 
+-- Returns value only for Blizzard flipbooks
+function OptionsPrivate.GetFlipbookTileSize(name)
+  if texture_data[name] then
+    if texture_data[name].isBlizzardFlipbook then
+      if texture_data[name].tileWidth and texture_data[name].tileHeight then
+        return {["tileWidth"] = texture_data[name].tileWidth, ["tileHeight"] = texture_data[name].tileHeight}
+      end
+    end
+  end
+end
+
 local function createOptions(id, data)
-  local textureNameHasData = OptionsPrivate.Private.StopMotionBase.textureNameHasData
-  local setTextureFunc = OptionsPrivate.Private.StopMotionBase.setTextureFunc
+    local textureNameHasData = OptionsPrivate.Private.StopMotionBase.textureNameHasData
+    local setTextureFunc = OptionsPrivate.Private.StopMotionBase.setTextureFunc
     local options = {
         __title = L["Stop Motion Settings"],
         __order = 1,
@@ -36,7 +47,7 @@ local function createOptions(id, data)
                   color = "foregroundColor",
                   mirror = "mirror",
                   blendMode = "blendMode"
-                }, texture_types, setTextureFunc);
+                }, texture_types, setTextureFunc, true);
             end,
             imageWidth = 24,
             imageHeight = 24,
@@ -365,7 +376,7 @@ local function createOptions(id, data)
           hidden = function()
             return data.sameTexture
                    or texture_data[data.backgroundTexture]
-                  or textureNameHasData(data.backgroundTexture)
+                   or textureNameHasData(data.backgroundTexture)
           end
       },
       customBackgroundFrames = {
@@ -587,7 +598,7 @@ local function modifyThumbnail(parent, region, data, fullModify, size)
     local texture = data.foregroundTexture or "Interface\\AddOns\\WeakAuras\\Media\\Textures\\stopmotion";
 
     if (region.foreground.rows and region.foreground.columns) then
-      region.texture:SetTexture(texture);
+      OptionsPrivate.Private.SetTextureOrAtlas(region.texture, texture)
       local frameScaleW, frameScaleH = 1, 1
       if region.foreground.fileWidth and region.foreground.frameWidth
         and region.foreground.fileWidth > 0 and region.foreground.frameWidth > 0
@@ -618,7 +629,7 @@ local function modifyThumbnail(parent, region, data, fullModify, size)
     end
 
     region.texture:SetVertexColor(data.foregroundColor[1], data.foregroundColor[2],
-                                  data.foregroundColor[3], data.foregroundColor[4]);
+                                  data.foregroundColor[3], data.foregroundColor[4])
     region.texture:SetBlendMode(data.blendMode);
 
     region.elapsed = 0;

@@ -1,15 +1,18 @@
 if not WeakAuras.IsLibsOK() then return end
+---@type string
 local AddonName = ...
+---@class OptionsPrivate
 local OptionsPrivate = select(2, ...)
 
 -- Lua APIs
 local pairs  = pairs
 
 -- WoW APIs
-local CreateFrame, GetSpellInfo = CreateFrame, GetSpellInfo
+local CreateFrame = CreateFrame
 
 local AceGUI = LibStub("AceGUI-3.0")
 
+---@class WeakAuras
 local WeakAuras = WeakAuras
 local L = WeakAuras.L
 
@@ -27,6 +30,7 @@ local function ConstructIconPicker(frame)
 
   local scroll = AceGUI:Create("ScrollFrame");
   scroll:SetLayout("flow");
+  scroll.frame:SetClipsChildren(true);
   group:AddChild(scroll);
 
   local function iconPickerFill(subname, doSort)
@@ -49,7 +53,7 @@ local function ConstructIconPicker(frame)
     if (tonumber(subname)) then
       local spellId = tonumber(subname);
       if (abs(spellId) < math.huge and tostring(spellId) ~= "nan") then
-        local name, _, icon = GetSpellInfo(spellId)
+        local name, _, icon = OptionsPrivate.Private.ExecEnv.GetSpellInfo(spellId)
         if name and icon then
           AddButton(name, icon)
         end
@@ -68,8 +72,8 @@ local function ConstructIconPicker(frame)
       for name, icons in pairs(spellCache.Get()) do
         if(name:lower():find(subname, 1, true)) then
           if icons.spells then
-            for spell, icon in icons.spells:gmatch("(%d+)=([%w_\\-]+),?") do
-              local iconId = icon
+            for spell, icon in icons.spells:gmatch("(%d+)=(%d+)") do
+              local iconId = tonumber(icon)
               if (not usedIcons[iconId]) then
                 AddButton(name, iconId)
                 num = num + 1;
@@ -79,8 +83,8 @@ local function ConstructIconPicker(frame)
               end
             end
           elseif icons.achievements then
-            for spell, icon in icons.achievements:gmatch("(%d+)=([%w_\\-]+),?") do
-              local iconId = icon
+            for _, icon in icons.achievements:gmatch("(%d+)=(%d+)") do
+              local iconId = tonumber(icon)
               if (not usedIcons[iconId]) then
                 AddButton(name, iconId)
                 num = num + 1;
@@ -99,17 +103,16 @@ local function ConstructIconPicker(frame)
     end
   end
 
-  local input = CreateFrame("EditBox", "WeakAurasFilterInput", group.frame)
-  WeakAuras.XMLTemplates["SearchBoxTemplate"](input)
+  local input = CreateFrame("EditBox", "WeakAurasFilterInput", group.frame, "SearchBoxTemplate")
   input:SetScript("OnTextChanged", function(self)
-    WA_SearchBoxTemplate_OnTextChanged(self)
+    SearchBoxTemplate_OnTextChanged(self)
     iconPickerFill(input:GetText(), false)
   end);
   input:SetScript("OnEnterPressed", function(...) iconPickerFill(input:GetText(), true); end);
   input:SetScript("OnEscapePressed", function(...) input:SetText(""); iconPickerFill(input:GetText(), true); end);
   input:SetWidth(200);
   input:SetHeight(15);
-  input:SetFont(STANDARD_TEXT_FONT, 10)
+  input:SetFont(STANDARD_TEXT_FONT, 10, "")
   input:SetPoint("BOTTOMRIGHT", group.frame, "TOPRIGHT", -3, -10);
 
   local icon = AceGUI:Create("WeakAurasIconButton");
